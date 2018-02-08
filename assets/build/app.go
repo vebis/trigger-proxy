@@ -11,6 +11,7 @@ import (
 )
 
 var mapping = make(map[string][]string)
+var quiet_period string
 
 func handler(w http.ResponseWriter, r *http.Request) {
     fmt.Println("Handling new request")
@@ -54,7 +55,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 
     fmt.Println("Start processing mappings")
     for _, job := range mapping[key] {
-        url := string(os.Getenv("JENKINS_URL")+"/job/"+job+"/build")
+        url := string(os.Getenv("JENKINS_URL")+"/job/"+job+"/build?delay="+quiet_period)
 
         req, err := http.NewRequest("POST", url, nil)
         if err != nil {
@@ -115,6 +116,12 @@ func main() {
 
     if os.Getenv("JENKINS_MULTI") != "" {
         os.Setenv("JENKINS_URL", os.Getenv("JENKINS_URL")+"/job/"+os.Getenv("JENKINS_MULTI"))
+    }
+
+    quiet_period = "30"
+    if os.Getenv("JENKINS_QUIET") != "" {
+        quiet_period = os.Getenv("JENKINS_QUIET")
+        fmt.Println("Found configured quiet period:", quiet_period)
     }
 
     fmt.Println("Project URL:", os.Getenv("JENKINS_URL"))

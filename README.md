@@ -11,6 +11,7 @@ Set the following environment variables
 * JENKINS_MULTI - name of multibranch pipeline project
 * JENKINS_USER - user who can trigger builds
 * JENKINS_TOKEN - the api token of the user
+* JENKINS_QUIET - quiet period for jobs, defaults to 30 (seconds)
 * MAPPING_FILE - path to mapping file, defaults to mapping.csv
 
 ## Usage
