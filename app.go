@@ -32,7 +32,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
     var branch string
     if !ok || len(branchs) < 1 {
         fmt.Println("Branch is missing. Assuming master")
-	branch = "master"
+        branch = "master"
     } else {
         branch = branchs[0]
     }
@@ -44,45 +44,45 @@ func handler(w http.ResponseWriter, r *http.Request) {
     fmt.Println("Searching mappings for key:", key)
 
     if len(mapping[key]) < 1 {
-	fmt.Fprintf(w, "No mappings found")
+        fmt.Fprintf(w, "No mappings found")
         fmt.Println("No mappings found")
-	fmt.Println("Aborting request handling")
-	return
+        fmt.Println("Aborting request handling")
+        return
     } else {
-	fmt.Println("Number of mappings found:", len(mapping[key]))
+        fmt.Println("Number of mappings found:", len(mapping[key]))
     }
 
     fmt.Println("Start processing mappings")
     for _, job := range mapping[key] {
-	url := string(os.Getenv("JENKINS_URL")+"/job/"+job+"/build")
+        url := string(os.Getenv("JENKINS_URL")+"/job/"+job+"/build")
 
-	req, err := http.NewRequest("POST", url, nil)
-	if err != nil {
-		return
-	}
+        req, err := http.NewRequest("POST", url, nil)
+        if err != nil {
+            return
+        }
 
-        req.SetBasicAuth(os.Getenv("JENKINS_USER"), os.Getenv("JENKINS_TOKEN"))
+            req.SetBasicAuth(os.Getenv("JENKINS_USER"), os.Getenv("JENKINS_TOKEN"))
 
-	tr := &http.Transport{
-            TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-	}
+        tr := &http.Transport{
+                TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+        }
 
-	timeout := time.Duration(5 * time.Second)
-	client := &http.Client{Transport: tr, Timeout: timeout}
-	resp, err := client.Do(req)
+        timeout := time.Duration(5 * time.Second)
+        client := &http.Client{Transport: tr, Timeout: timeout}
+        resp, err := client.Do(req)
 
-	if err != nil {
-		fmt.Fprintf(w, "some error occured, check log")
-		fmt.Println("Error:", err)
+        if err != nil {
+            fmt.Fprintf(w, "some error occured, check log")
+            fmt.Println("Error:", err)
 
-		return
-	}
+            return
+        }
 
-	if !(200 <= resp.StatusCode && resp.StatusCode <= 299) {
-		fmt.Printf("... %v failed with status code %v\n", job, resp.StatusCode)
-	} else {
-		fmt.Printf("... %v triggered\n", job)
-	}
+        if !(200 <= resp.StatusCode && resp.StatusCode <= 299) {
+            fmt.Printf("... %v failed with status code %v\n", job, resp.StatusCode)
+        } else {
+            fmt.Printf("... %v triggered\n", job)
+        }
     }
     fmt.Println("End processing mappings")
 
@@ -95,8 +95,8 @@ func main() {
     fmt.Println("Checking environment variables")
 
     if os.Getenv("JENKINS_URL") == "" {
-	fmt.Println("No JENKINS_URL defined")
-	return
+        fmt.Println("No JENKINS_URL defined")
+        return
     }
 
     if os.Getenv("JENKINS_USER") == "" {
@@ -122,41 +122,41 @@ func main() {
     mappingfile := "mapping.csv"
     if os.Getenv("MAPPING_FILE") != "" {
         mappingfile = os.Getenv("MAPPING_FILE")
-	fmt.Println("Found configured mapping file:", mappingfile)
+        fmt.Println("Found configured mapping file:", mappingfile)
     }
 
     fmt.Println("Reading mapping from file:", mappingfile)
 
     file, err := os.Open(mappingfile)
-	if err != nil {
-		// err is printable
-		// elements passed are separated by space automatically
-		fmt.Println("Error:", err)
-		return
-	}
-	// automatically call Close() at the end of current method
-	defer file.Close()
-	// 
+    if err != nil {
+        // err is printable
+        // elements passed are separated by space automatically
+        fmt.Println("Error:", err)
+        return
+    }
+    // automatically call Close() at the end of current method
+    defer file.Close()
+    //
 
-	reader := csv.NewReader(file)
-	// options are available at:
-	// http://golang.org/src/pkg/encoding/csv/reader.go?s=3213:3671#L94
-	reader.Comma = ';'
-	lineCount := 0
-	for {
-		// read just one record, but we could ReadAll() as well
-		record, err := reader.Read()
-		// end-of-file is fitted into err
-		if err == io.EOF {
-			break
-		} else if err != nil {
-			fmt.Println("Error:", err)
-			return
-		}
+    reader := csv.NewReader(file)
+    // options are available at:
+    // http://golang.org/src/pkg/encoding/csv/reader.go?s=3213:3671#L94
+    reader.Comma = ';'
+    lineCount := 0
+    for {
+        // read just one record, but we could ReadAll() as well
+        record, err := reader.Read()
+        // end-of-file is fitted into err
+        if err == io.EOF {
+            break
+        } else if err != nil {
+            fmt.Println("Error:", err)
+            return
+        }
 
-		mapping[record[0]+"|"+record[1]] = append(mapping[record[0]+"|"+record[1]], record[2])
-		lineCount += 1
-	}
+        mapping[record[0]+"|"+record[1]] = append(mapping[record[0]+"|"+record[1]], record[2])
+        lineCount += 1
+    }
 
     fmt.Println("Succesfully read mappings:", lineCount)
 
