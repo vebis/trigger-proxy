@@ -1,5 +1,5 @@
 NAME     = trigger-proxy
-REGISTRY = dr:5000
+REGISTRY = vebis
 VERSION  = 1.0.0
 
 .PHONY: build clean
