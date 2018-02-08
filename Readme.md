@@ -8,7 +8,7 @@ This is useful to have commit hook triggered builds on pipelines without direct 
 Set the following environment variables
 
 * JENKINS_URL - your jenkins installation
-* JENKINGS_MULTI - name of multibranch pipeline project
+* JENKINS_MULTI - name of multibranch pipeline project
 * JENKINS_USER - user who can trigger builds
 * JENKINS_TOKEN - the api token of the user
 * MAPPING_FILE - path to mapping file, defaults to mapping.csv
