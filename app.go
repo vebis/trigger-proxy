@@ -45,6 +45,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 
     if len(mapping[key]) < 1 {
 	fmt.Fprintf(w, "No mappings found")
+        fmt.Println("No mappings found")
 	fmt.Println("Aborting request handling")
 	return
     } else {
