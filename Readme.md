@@ -27,4 +27,4 @@ The app will lookup any job names for your input and will trigger them.
 
 ## License
 
-dunno
+BSD 2-Clause "Simplified" License
