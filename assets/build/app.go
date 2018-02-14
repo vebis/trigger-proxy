@@ -8,52 +8,53 @@ import (
     "os"
     "crypto/tls"
     "time"
+    "log"
 )
 
 var mapping = make(map[string][]string)
 var quiet_period string
 
 func handler(w http.ResponseWriter, r *http.Request) {
-    fmt.Println("Handling new request")
+    log.Print("Handling new request")
 
     repos, ok := r.URL.Query()["repo"]
 
     if !ok || len(repos) < 1 {
-        fmt.Println("Repo is missing")
-        fmt.Println("Aborting request handling")
+        log.Print("Repo is missing")
+        log.Print("Aborting request handling")
         return
     }
 
     repo := repos[0]
 
-    fmt.Println("Parsed repo:", repo)
+    log.Print("Parsed repo:", repo)
 
     branchs, ok := r.URL.Query()["branch"]
 
     var branch string
     if !ok || len(branchs) < 1 {
-        fmt.Println("Branch is missing. Assuming master")
+        log.Print("Branch is missing. Assuming master")
         branch = "master"
     } else {
         branch = branchs[0]
     }
 
-    fmt.Println("Parsed branch:", branch)
+    log.Print("Parsed branch:", branch)
 
     key := string(repo+"|"+branch)
 
-    fmt.Println("Searching mappings for key:", key)
+    log.Print("Searching mappings for key:", key)
 
     if len(mapping[key]) < 1 {
         fmt.Fprintf(w, "No mappings found")
-        fmt.Println("No mappings found")
-        fmt.Println("Aborting request handling")
+        log.Print("No mappings found")
+        log.Print("Aborting request handling")
         return
     } else {
-        fmt.Println("Number of mappings found:", len(mapping[key]))
+        log.Print("Number of mappings found:", len(mapping[key]))
     }
 
-    fmt.Println("Start processing mappings")
+    log.Print("Start processing mappings")
     for _, job := range mapping[key] {
         url := string(os.Getenv("JENKINS_URL")+"/job/"+job+"/build?delay="+quiet_period)
 
@@ -74,7 +75,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 
         if err != nil {
             fmt.Fprintf(w, "some error occured, check log")
-            fmt.Println("Error:", err)
+            log.Print("Error:", err)
 
             return
         }
@@ -85,33 +86,33 @@ func handler(w http.ResponseWriter, r *http.Request) {
             fmt.Printf("... %v triggered\n", job)
         }
     }
-    fmt.Println("End processing mappings")
+    log.Print("End processing mappings")
 
-    fmt.Println("Handling request finished")
+    log.Print("Handling request finished")
 }
 
 func main() {
-    fmt.Println("Starting trigger-proxy ...")
+    log.Print("Starting trigger-proxy ...")
 
-    fmt.Println("Checking environment variables")
+    log.Print("Checking environment variables")
 
     if os.Getenv("JENKINS_URL") == "" {
-        fmt.Println("No JENKINS_URL defined")
+        log.Print("No JENKINS_URL defined")
         return
     }
 
     if os.Getenv("JENKINS_USER") == "" {
-        fmt.Println("No JENKINS_USER defined")
+        log.Print("No JENKINS_USER defined")
         return
     }
 
     if os.Getenv("JENKINS_TOKEN") == "" {
-        fmt.Println("No JENKINS_TOKEN defined")
+        log.Print("No JENKINS_TOKEN defined")
         return
     }
 
     if os.Getenv("JENKINS_MULTI") != "" {
-        fmt.Println("Found multibranch project:", os.Getenv("JENKINS_MULTI"))
+        log.Print("Found multibranch project:", os.Getenv("JENKINS_MULTI"))
     }
 
     if os.Getenv("JENKINS_MULTI") != "" {
@@ -121,24 +122,24 @@ func main() {
     quiet_period = "30"
     if os.Getenv("JENKINS_QUIET") != "" {
         quiet_period = os.Getenv("JENKINS_QUIET")
-        fmt.Println("Found configured quiet period:", quiet_period)
+        log.Print("Found configured quiet period:", quiet_period)
     }
 
-    fmt.Println("Project URL:", os.Getenv("JENKINS_URL"))
+    log.Print("Project URL:", os.Getenv("JENKINS_URL"))
 
     mappingfile := "mapping.csv"
     if os.Getenv("MAPPING_FILE") != "" {
         mappingfile = os.Getenv("MAPPING_FILE")
-        fmt.Println("Found configured mapping file:", mappingfile)
+        log.Print("Found configured mapping file:", mappingfile)
     }
 
-    fmt.Println("Reading mapping from file:", mappingfile)
+    log.Print("Reading mapping from file:", mappingfile)
 
     file, err := os.Open(mappingfile)
     if err != nil {
         // err is printable
         // elements passed are separated by space automatically
-        fmt.Println("Error:", err)
+        log.Print("Error:", err)
         return
     }
     // automatically call Close() at the end of current method
@@ -157,7 +158,7 @@ func main() {
         if err == io.EOF {
             break
         } else if err != nil {
-            fmt.Println("Error:", err)
+            log.Print("Error:", err)
             return
         }
 
@@ -165,11 +166,11 @@ func main() {
         lineCount += 1
     }
 
-    fmt.Println("Succesfully read mappings:", lineCount)
+    log.Print("Succesfully read mappings:", lineCount)
 
-    fmt.Println("Adding handler")
+    log.Print("Adding handler")
     http.HandleFunc("/", handler)
 
-    fmt.Println("Serving on port 8080")
+    log.Print("Serving on port 8080")
     http.ListenAndServe(":8080", nil)
 }
