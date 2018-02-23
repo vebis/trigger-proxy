@@ -9,10 +9,73 @@ import (
     "crypto/tls"
     "time"
     "log"
+    "strconv"
 )
 
 var mapping = make(map[string][]string)
-var quiet_period string
+var quiet_period int
+var time_keeper = make(map[string]*time.Timer)
+
+func triggerJob(job string) bool {
+    ret := false
+    url := string(os.Getenv("JENKINS_URL")+"/job/"+job+"/build")
+
+    req, err := http.NewRequest("POST", url, nil)
+    if err != nil {
+        return ret
+    }
+
+    req.SetBasicAuth(os.Getenv("JENKINS_USER"), os.Getenv("JENKINS_TOKEN"))
+
+    tr := &http.Transport{
+        TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+    }
+
+    timeout := time.Duration(5 * time.Second)
+    client := &http.Client{Transport: tr, Timeout: timeout}
+    resp, err := client.Do(req)
+
+    if err != nil {
+        log.Print("Error:", err)
+
+        return ret
+    }
+
+    if !(200 <= resp.StatusCode && resp.StatusCode <= 299) {
+        fmt.Printf("... %v failed with status code %v\n", job, resp.StatusCode)
+    } else {
+        fmt.Printf("... %v triggered\n", job)
+    }
+
+    return true
+}
+
+func createTimer(job string) {
+    if _, ok := time_keeper[job]; ok {
+        log.Print("Reseting timer for job ", job)
+        time_keeper[job].Stop()
+        delete(time_keeper, job)
+    }
+
+    log.Printf("Creating timer for job '%s' with quiet period of %s seconds", job, quiet_period)
+
+    timer := time.AfterFunc(time.Second*time.Duration(quiet_period), func() {
+       log.Print("Quiet period exceeded for job ", job)
+       triggerJob(job)
+       if _, ok := time_keeper[job]; ok {
+           log.Print("Deleting timer for job ", job)
+           delete(time_keeper, job)
+       }
+    })
+//    defer timer.Stop()
+
+    time_keeper[job] = timer
+    if _, ok := time_keeper[job]; ok {
+        log.Print("Timer saved in time keeper")
+    }
+
+    return
+}
 
 func handler(w http.ResponseWriter, r *http.Request) {
     log.Print("Handling new request")
@@ -56,35 +119,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 
     log.Print("Start processing mappings")
     for _, job := range mapping[key] {
-        url := string(os.Getenv("JENKINS_URL")+"/job/"+job+"/build?delay="+quiet_period)
-
-        req, err := http.NewRequest("POST", url, nil)
-        if err != nil {
-            return
-        }
-
-            req.SetBasicAuth(os.Getenv("JENKINS_USER"), os.Getenv("JENKINS_TOKEN"))
-
-        tr := &http.Transport{
-                TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-        }
-
-        timeout := time.Duration(5 * time.Second)
-        client := &http.Client{Transport: tr, Timeout: timeout}
-        resp, err := client.Do(req)
-
-        if err != nil {
-            fmt.Fprintf(w, "some error occured, check log")
-            log.Print("Error:", err)
-
-            return
-        }
-
-        if !(200 <= resp.StatusCode && resp.StatusCode <= 299) {
-            fmt.Printf("... %v failed with status code %v\n", job, resp.StatusCode)
-        } else {
-            fmt.Printf("... %v triggered\n", job)
-        }
+        createTimer(job)
     }
     log.Print("End processing mappings")
 
@@ -119,9 +154,13 @@ func main() {
         os.Setenv("JENKINS_URL", os.Getenv("JENKINS_URL")+"/job/"+os.Getenv("JENKINS_MULTI"))
     }
 
-    quiet_period = "30"
+    quiet_period = 30
     if os.Getenv("JENKINS_QUIET") != "" {
-        quiet_period = os.Getenv("JENKINS_QUIET")
+        t_quiet_period, err := strconv.Atoi(os.Getenv("JENKINS_QUIET"))
+        if err != nil {
+            log.Fatal("Quiet Period could not be parsed. Aborting")
+        }
+        quiet_period = t_quiet_period
         log.Print("Found configured quiet period:", quiet_period)
     }
 
