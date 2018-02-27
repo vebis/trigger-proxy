@@ -42,9 +42,9 @@ func triggerJob(job string) bool {
     }
 
     if !(200 <= resp.StatusCode && resp.StatusCode <= 299) {
-        fmt.Printf("... %v failed with status code %v\n", job, resp.StatusCode)
+        log.Printf("... %v failed with status code %v\n", job, resp.StatusCode)
     } else {
-        fmt.Printf("... %v triggered\n", job)
+        log.Printf("... %v triggered\n", job)
     }
 
     return true
