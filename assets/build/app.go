@@ -1,15 +1,15 @@
 package main
 
 import (
-    "fmt"
-    "net/http"
-    "encoding/csv"
-    "io"
-    "os"
-    "crypto/tls"
-    "time"
-    "log"
-    "strconv"
+	"crypto/tls"
+	"encoding/csv"
+	"fmt"
+	"io"
+	"log"
+	"net/http"
+	"os"
+	"strconv"
+	"time"
 )
 
 var mapping = make(map[string][]string)
@@ -17,199 +17,199 @@ var quiet_period int
 var time_keeper = make(map[string]*time.Timer)
 
 func triggerJob(job string) bool {
-    ret := false
-    url := string(os.Getenv("JENKINS_URL")+"/job/"+job+"/build")
+	ret := false
+	url := string(os.Getenv("JENKINS_URL") + "/job/" + job + "/build")
 
-    req, err := http.NewRequest("POST", url, nil)
-    if err != nil {
-        return ret
-    }
+	req, err := http.NewRequest("POST", url, nil)
+	if err != nil {
+		return ret
+	}
 
-    req.SetBasicAuth(os.Getenv("JENKINS_USER"), os.Getenv("JENKINS_TOKEN"))
+	req.SetBasicAuth(os.Getenv("JENKINS_USER"), os.Getenv("JENKINS_TOKEN"))
 
-    tr := &http.Transport{
-        TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-    }
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	}
 
-    timeout := time.Duration(5 * time.Second)
-    client := &http.Client{Transport: tr, Timeout: timeout}
-    resp, err := client.Do(req)
+	timeout := time.Duration(5 * time.Second)
+	client := &http.Client{Transport: tr, Timeout: timeout}
+	resp, err := client.Do(req)
 
-    if err != nil {
-        log.Print("Error:", err)
+	if err != nil {
+		log.Print("Error:", err)
 
-        return ret
-    }
+		return ret
+	}
 
-    if !(200 <= resp.StatusCode && resp.StatusCode <= 299) {
-        log.Printf("... %v failed with status code %v\n", job, resp.StatusCode)
-    } else {
-        log.Printf("... %v triggered\n", job)
-    }
+	if !(200 <= resp.StatusCode && resp.StatusCode <= 299) {
+		log.Printf("... %v failed with status code %v\n", job, resp.StatusCode)
+	} else {
+		log.Printf("... %v triggered\n", job)
+	}
 
-    return true
+	return true
 }
 
 func createTimer(job string) {
-    if _, ok := time_keeper[job]; ok {
-        log.Print("Reseting timer for job ", job)
-        time_keeper[job].Stop()
-        delete(time_keeper, job)
-    }
+	if _, ok := time_keeper[job]; ok {
+		log.Print("Reseting timer for job ", job)
+		time_keeper[job].Stop()
+		delete(time_keeper, job)
+	}
 
-    log.Printf("Creating timer for job '%s' with quiet period of %s seconds", job, quiet_period)
+	log.Printf("Creating timer for job '%s' with quiet period of %s seconds", job, quiet_period)
 
-    timer := time.AfterFunc(time.Second*time.Duration(quiet_period), func() {
-       log.Print("Quiet period exceeded for job ", job)
-       triggerJob(job)
-       if _, ok := time_keeper[job]; ok {
-           log.Print("Deleting timer for job ", job)
-           delete(time_keeper, job)
-       }
-    })
-//    defer timer.Stop()
+	timer := time.AfterFunc(time.Second*time.Duration(quiet_period), func() {
+		log.Print("Quiet period exceeded for job ", job)
+		triggerJob(job)
+		if _, ok := time_keeper[job]; ok {
+			log.Print("Deleting timer for job ", job)
+			delete(time_keeper, job)
+		}
+	})
+	//    defer timer.Stop()
 
-    time_keeper[job] = timer
-    if _, ok := time_keeper[job]; ok {
-        log.Print("Timer saved in time keeper")
-    }
+	time_keeper[job] = timer
+	if _, ok := time_keeper[job]; ok {
+		log.Print("Timer saved in time keeper")
+	}
 
-    return
+	return
 }
 
 func handler(w http.ResponseWriter, r *http.Request) {
-    log.Print("Handling new request")
+	log.Print("Handling new request")
 
-    repos, ok := r.URL.Query()["repo"]
+	repos, ok := r.URL.Query()["repo"]
 
-    if !ok || len(repos) < 1 {
-        log.Print("Repo is missing")
-        log.Print("Aborting request handling")
-        return
-    }
+	if !ok || len(repos) < 1 {
+		log.Print("Repo is missing")
+		log.Print("Aborting request handling")
+		return
+	}
 
-    repo := repos[0]
+	repo := repos[0]
 
-    log.Print("Parsed repo:", repo)
+	log.Print("Parsed repo:", repo)
 
-    branchs, ok := r.URL.Query()["branch"]
+	branchs, ok := r.URL.Query()["branch"]
 
-    var branch string
-    if !ok || len(branchs) < 1 {
-        log.Print("Branch is missing. Assuming master")
-        branch = "master"
-    } else {
-        branch = branchs[0]
-    }
+	var branch string
+	if !ok || len(branchs) < 1 {
+		log.Print("Branch is missing. Assuming master")
+		branch = "master"
+	} else {
+		branch = branchs[0]
+	}
 
-    log.Print("Parsed branch:", branch)
+	log.Print("Parsed branch:", branch)
 
-    key := string(repo+"|"+branch)
+	key := string(repo + "|" + branch)
 
-    log.Print("Searching mappings for key:", key)
+	log.Print("Searching mappings for key:", key)
 
-    if len(mapping[key]) < 1 {
-        fmt.Fprintf(w, "No mappings found")
-        log.Print("No mappings found")
-        log.Print("Aborting request handling")
-        return
-    } else {
-        log.Print("Number of mappings found:", len(mapping[key]))
-    }
+	if len(mapping[key]) < 1 {
+		fmt.Fprintf(w, "No mappings found")
+		log.Print("No mappings found")
+		log.Print("Aborting request handling")
+		return
+	} else {
+		log.Print("Number of mappings found:", len(mapping[key]))
+	}
 
-    log.Print("Start processing mappings")
-    for _, job := range mapping[key] {
-        createTimer(job)
-    }
-    log.Print("End processing mappings")
+	log.Print("Start processing mappings")
+	for _, job := range mapping[key] {
+		createTimer(job)
+	}
+	log.Print("End processing mappings")
 
-    log.Print("Handling request finished")
+	log.Print("Handling request finished")
 }
 
 func main() {
-    log.Print("Starting trigger-proxy ...")
+	log.Print("Starting trigger-proxy ...")
 
-    log.Print("Checking environment variables")
+	log.Print("Checking environment variables")
 
-    if os.Getenv("JENKINS_URL") == "" {
-        log.Print("No JENKINS_URL defined")
-        return
-    }
+	if os.Getenv("JENKINS_URL") == "" {
+		log.Print("No JENKINS_URL defined")
+		return
+	}
 
-    if os.Getenv("JENKINS_USER") == "" {
-        log.Print("No JENKINS_USER defined")
-        return
-    }
+	if os.Getenv("JENKINS_USER") == "" {
+		log.Print("No JENKINS_USER defined")
+		return
+	}
 
-    if os.Getenv("JENKINS_TOKEN") == "" {
-        log.Print("No JENKINS_TOKEN defined")
-        return
-    }
+	if os.Getenv("JENKINS_TOKEN") == "" {
+		log.Print("No JENKINS_TOKEN defined")
+		return
+	}
 
-    if os.Getenv("JENKINS_MULTI") != "" {
-        log.Print("Found multibranch project:", os.Getenv("JENKINS_MULTI"))
-    }
+	if os.Getenv("JENKINS_MULTI") != "" {
+		log.Print("Found multibranch project:", os.Getenv("JENKINS_MULTI"))
+	}
 
-    if os.Getenv("JENKINS_MULTI") != "" {
-        os.Setenv("JENKINS_URL", os.Getenv("JENKINS_URL")+"/job/"+os.Getenv("JENKINS_MULTI"))
-    }
+	if os.Getenv("JENKINS_MULTI") != "" {
+		os.Setenv("JENKINS_URL", os.Getenv("JENKINS_URL")+"/job/"+os.Getenv("JENKINS_MULTI"))
+	}
 
-    quiet_period = 30
-    if os.Getenv("JENKINS_QUIET") != "" {
-        t_quiet_period, err := strconv.Atoi(os.Getenv("JENKINS_QUIET"))
-        if err != nil {
-            log.Fatal("Quiet Period could not be parsed. Aborting")
-        }
-        quiet_period = t_quiet_period
-        log.Print("Found configured quiet period:", quiet_period)
-    }
+	quiet_period = 30
+	if os.Getenv("JENKINS_QUIET") != "" {
+		t_quiet_period, err := strconv.Atoi(os.Getenv("JENKINS_QUIET"))
+		if err != nil {
+			log.Fatal("Quiet Period could not be parsed. Aborting")
+		}
+		quiet_period = t_quiet_period
+		log.Print("Found configured quiet period:", quiet_period)
+	}
 
-    log.Print("Project URL:", os.Getenv("JENKINS_URL"))
+	log.Print("Project URL:", os.Getenv("JENKINS_URL"))
 
-    mappingfile := "mapping.csv"
-    if os.Getenv("MAPPING_FILE") != "" {
-        mappingfile = os.Getenv("MAPPING_FILE")
-        log.Print("Found configured mapping file:", mappingfile)
-    }
+	mappingfile := "mapping.csv"
+	if os.Getenv("MAPPING_FILE") != "" {
+		mappingfile = os.Getenv("MAPPING_FILE")
+		log.Print("Found configured mapping file:", mappingfile)
+	}
 
-    log.Print("Reading mapping from file:", mappingfile)
+	log.Print("Reading mapping from file:", mappingfile)
 
-    file, err := os.Open(mappingfile)
-    if err != nil {
-        // err is printable
-        // elements passed are separated by space automatically
-        log.Print("Error:", err)
-        return
-    }
-    // automatically call Close() at the end of current method
-    defer file.Close()
-    //
+	file, err := os.Open(mappingfile)
+	if err != nil {
+		// err is printable
+		// elements passed are separated by space automatically
+		log.Print("Error:", err)
+		return
+	}
+	// automatically call Close() at the end of current method
+	defer file.Close()
+	//
 
-    reader := csv.NewReader(file)
-    // options are available at:
-    // http://golang.org/src/pkg/encoding/csv/reader.go?s=3213:3671#L94
-    reader.Comma = ';'
-    lineCount := 0
-    for {
-        // read just one record, but we could ReadAll() as well
-        record, err := reader.Read()
-        // end-of-file is fitted into err
-        if err == io.EOF {
-            break
-        } else if err != nil {
-            log.Print("Error:", err)
-            return
-        }
+	reader := csv.NewReader(file)
+	// options are available at:
+	// http://golang.org/src/pkg/encoding/csv/reader.go?s=3213:3671#L94
+	reader.Comma = ';'
+	lineCount := 0
+	for {
+		// read just one record, but we could ReadAll() as well
+		record, err := reader.Read()
+		// end-of-file is fitted into err
+		if err == io.EOF {
+			break
+		} else if err != nil {
+			log.Print("Error:", err)
+			return
+		}
 
-        mapping[record[0]+"|"+record[1]] = append(mapping[record[0]+"|"+record[1]], record[2])
-        lineCount += 1
-    }
+		mapping[record[0]+"|"+record[1]] = append(mapping[record[0]+"|"+record[1]], record[2])
+		lineCount += 1
+	}
 
-    log.Print("Succesfully read mappings:", lineCount)
+	log.Print("Succesfully read mappings:", lineCount)
 
-    log.Print("Adding handler")
-    http.HandleFunc("/", handler)
+	log.Print("Adding handler")
+	http.HandleFunc("/", handler)
 
-    log.Print("Serving on port 8080")
-    http.ListenAndServe(":8080", nil)
+	log.Print("Serving on port 8080")
+	http.ListenAndServe(":8080", nil)
 }
