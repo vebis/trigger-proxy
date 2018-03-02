@@ -14,7 +14,7 @@ import (
 
 var mapping = make(map[string][]string)
 var quietPeriod int
-var time_keeper = make(map[string]*time.Timer)
+var timeKeeper = make(map[string]*time.Timer)
 
 func triggerJob(job string) bool {
 	ret := false
@@ -51,10 +51,10 @@ func triggerJob(job string) bool {
 }
 
 func createTimer(job string) {
-	if _, ok := time_keeper[job]; ok {
+	if _, ok := timeKeeper[job]; ok {
 		log.Print("Reseting timer for job ", job)
-		time_keeper[job].Stop()
-		delete(time_keeper, job)
+		timeKeeper[job].Stop()
+		delete(timeKeeper, job)
 	}
 
 	log.Printf("Creating timer for job '%s' with quiet period of %s seconds", job, quietPeriod)
@@ -62,15 +62,15 @@ func createTimer(job string) {
 	timer := time.AfterFunc(time.Second*time.Duration(quietPeriod), func() {
 		log.Print("Quiet period exceeded for job ", job)
 		triggerJob(job)
-		if _, ok := time_keeper[job]; ok {
+		if _, ok := timeKeeper[job]; ok {
 			log.Print("Deleting timer for job ", job)
-			delete(time_keeper, job)
+			delete(timeKeeper, job)
 		}
 	})
 	//    defer timer.Stop()
 
-	time_keeper[job] = timer
-	if _, ok := time_keeper[job]; ok {
+	timeKeeper[job] = timer
+	if _, ok := timeKeeper[job]; ok {
 		log.Print("Timer saved in time keeper")
 	}
 
