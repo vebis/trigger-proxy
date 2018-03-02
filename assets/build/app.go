@@ -205,7 +205,7 @@ func main() {
 		lineCount += 1
 	}
 
-	log.Print("Succesfully read mappings:", lineCount)
+	log.Print("Successfully read mappings:", lineCount)
 
 	log.Print("Adding handler")
 	http.HandleFunc("/", handler)
