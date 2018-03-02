@@ -57,7 +57,7 @@ func createTimer(job string) {
 		delete(timeKeeper, job)
 	}
 
-	log.Printf("Creating timer for job '%s' with quiet period of %s seconds", job, quietPeriod)
+	log.Printf("Creating timer for job '%s' with quiet period of %d seconds", job, quietPeriod)
 
 	timer := time.AfterFunc(time.Second*time.Duration(quietPeriod), func() {
 		log.Print("Quiet period exceeded for job ", job)
