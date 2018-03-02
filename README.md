@@ -3,6 +3,9 @@
 trigger-proxy is used to map git repository / branch tuples to job names on Jenkins. Especially, but not exclusive for multibranch pipeline projects.
 This is useful to have commit hook triggered builds on pipelines without direct git association in Jenkins.
 
+## Badges
+[![Go Report Card](https://goreportcard.com/badge/github.com/vebis/trigger-proxy)](https://goreportcard.com/report/github.com/vebis/trigger-proxy)
+
 ## Getting started
 
 Set the following environment variables
