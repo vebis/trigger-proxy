@@ -13,7 +13,7 @@ import (
 )
 
 var mapping = make(map[string][]string)
-var quiet_period int
+var quietPeriod int
 var time_keeper = make(map[string]*time.Timer)
 
 func triggerJob(job string) bool {
@@ -57,9 +57,9 @@ func createTimer(job string) {
 		delete(time_keeper, job)
 	}
 
-	log.Printf("Creating timer for job '%s' with quiet period of %s seconds", job, quiet_period)
+	log.Printf("Creating timer for job '%s' with quiet period of %s seconds", job, quietPeriod)
 
-	timer := time.AfterFunc(time.Second*time.Duration(quiet_period), func() {
+	timer := time.AfterFunc(time.Second*time.Duration(quietPeriod), func() {
 		log.Print("Quiet period exceeded for job ", job)
 		triggerJob(job)
 		if _, ok := time_keeper[job]; ok {
@@ -113,9 +113,9 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		log.Print("No mappings found")
 		log.Print("Aborting request handling")
 		return
-	} else {
-		log.Print("Number of mappings found:", len(mapping[key]))
 	}
+
+	log.Print("Number of mappings found:", len(mapping[key]))
 
 	log.Print("Start processing mappings")
 	for _, job := range mapping[key] {
@@ -154,14 +154,14 @@ func main() {
 		os.Setenv("JENKINS_URL", os.Getenv("JENKINS_URL")+"/job/"+os.Getenv("JENKINS_MULTI"))
 	}
 
-	quiet_period = 30
+	quietPeriod = 30
 	if os.Getenv("JENKINS_QUIET") != "" {
-		t_quiet_period, err := strconv.Atoi(os.Getenv("JENKINS_QUIET"))
+		tQuietPeriod, err := strconv.Atoi(os.Getenv("JENKINS_QUIET"))
 		if err != nil {
 			log.Fatal("Quiet Period could not be parsed. Aborting")
 		}
-		quiet_period = t_quiet_period
-		log.Print("Found configured quiet period:", quiet_period)
+		quietPeriod = tQuietPeriod
+		log.Print("Found configured quiet period:", quietPeriod)
 	}
 
 	log.Print("Project URL:", os.Getenv("JENKINS_URL"))
