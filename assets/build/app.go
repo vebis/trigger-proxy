@@ -25,7 +25,13 @@ func triggerJob(job string) bool {
 		return ret
 	}
 
-	req.SetBasicAuth(os.Getenv("JENKINS_USER"), os.Getenv("JENKINS_TOKEN"))
+	// if user and token is defined, use it for basic auth
+	if os.Getenv("JENKINS_USER") != "" {
+		req.SetBasicAuth(os.Getenv("JENKINS_USER"), os.Getenv("JENKINS_TOKEN"))
+	} else {
+	// otherwise use the token for the direct build trigger
+		url = string(url + "?token=" + os.Getenv("JENKINS_TOKEN"))
+	}
 
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
@@ -138,7 +144,6 @@ func main() {
 
 	if os.Getenv("JENKINS_USER") == "" {
 		log.Print("No JENKINS_USER defined")
-		return
 	}
 
 	if os.Getenv("JENKINS_TOKEN") == "" {
