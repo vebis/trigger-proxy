@@ -13,14 +13,15 @@ import (
 	"strings"
 	"time"
 )
+
 const (
 	exitFail = 1
 )
 
 var (
-	mapping = make(map[string][]string)
+	mapping     = make(map[string][]string)
 	quietPeriod int
-	timeKeeper = make(map[string]*time.Timer)
+	timeKeeper  = make(map[string]*time.Timer)
 )
 
 func triggerJob(job string) bool {
@@ -36,7 +37,7 @@ func triggerJob(job string) bool {
 	if os.Getenv("JENKINS_USER") != "" {
 		req.SetBasicAuth(os.Getenv("JENKINS_USER"), os.Getenv("JENKINS_TOKEN"))
 	} else {
-	// otherwise use the token for the direct build trigger
+		// otherwise use the token for the direct build trigger
 		url = string(url + "?token=" + os.Getenv("JENKINS_TOKEN"))
 	}
 
@@ -121,7 +122,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 
 	log.Print("Searching mappings for key: ", key)
 
-	if len(mapping[key]) < 1 {
+	if len(mapping[key]) == 0 {
 		fmt.Fprintf(w, "No mappings found")
 		log.Print("No mappings found")
 		log.Print("Aborting request handling")
@@ -178,7 +179,7 @@ func run(args []string, stdout io.Writer) error {
 			return errors.New("Quiet Period could not be parsed. Aborting")
 		}
 		quietPeriod = tQuietPeriod
-		fmt.Fprintf(stdout, "Found configured quiet period: %s\n", quietPeriod)
+		fmt.Fprintf(stdout, "Found configured quiet period: %d\n", quietPeriod)
 	}
 
 	fmt.Fprintf(stdout, "Project URL: %s\n", os.Getenv("JENKINS_URL"))
@@ -189,7 +190,7 @@ func run(args []string, stdout io.Writer) error {
 		fmt.Fprintf(stdout, "Found configured mapping file: %s\n", mappingfile)
 	}
 
-	if err := ParseMappingFile(mappingfile, stdout); err != nil {
+	if err := ProcessMappingFile(mappingfile, stdout); err != nil {
 		return err
 	}
 
@@ -201,31 +202,41 @@ func run(args []string, stdout io.Writer) error {
 	return nil
 }
 
-func ParseMappingFile(mappingfile string, stdout io.Writer) error {
-        fmt.Fprintf(stdout, "Reading mapping from file: %s\n", mappingfile)
+func ProcessMappingFile(mappingfile string, stdout io.Writer) error {
+	fmt.Fprintf(stdout, "Reading mapping from file: %s\n", mappingfile)
 
-        file, err := os.Open(mappingfile)
-        if err != nil {
-                return err
-        }
-        defer file.Close()
+	file, err := os.Open(mappingfile)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
 
-        reader := csv.NewReader(file)
-        reader.Comma = ';'
-        lineCount := 0
-        for {
-                record, err := reader.Read()
+	perr := ParseMappingFile(file, stdout)
 
-                if err == io.EOF {
-                        break
-                } else if err != nil {
-                        return err
-                }
+	if perr != nil {
+		return err
+	}
 
-		key := BuildMappingKey([]string{record[0],record[1]})
-                mapping[key] = append(mapping[key], record[2])
-                lineCount += 1
-        }
+	return nil
+}
+
+func ParseMappingFile(file io.Reader, stdout io.Writer) error {
+	reader := csv.NewReader(file)
+	reader.Comma = ';'
+	lineCount := 0
+	for {
+		record, err := reader.Read()
+
+		if err == io.EOF {
+			break
+		} else if err != nil {
+			return err
+		}
+
+		key := BuildMappingKey([]string{record[0], record[1]})
+		mapping[key] = append(mapping[key], record[2])
+		lineCount++
+	}
 
 	fmt.Fprintf(stdout, "Successfully read mappings: %d\n", lineCount)
 
