@@ -1,8 +1,8 @@
 package main
 
 import (
-	"bytes"
 	"io"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -33,22 +33,61 @@ func TestParseMappingFile(t *testing.T) {
 		file io.Reader
 	}
 	tests := []struct {
-		name       string
-		args       args
-		wantStdout string
-		wantErr    bool
+		name    string
+		args    args
+		want    triggerMapping
+		wantErr bool
 	}{
-		{"single_repo", args{file: strings.NewReader("git://reposerver/repo;branch;job;")}, "Successfully read mappings: 1\n", false},
+		{
+			"single_repo",
+			args{file: strings.NewReader("git://reposerver/repo;branch;job;")},
+			triggerMapping{map[string][]string{
+				"git://reposerver/repo|branch": {"job"},
+			}},
+			false,
+		},
+		{
+			"three_repos",
+			args{file: strings.NewReader("git://reposerver/repo;branch;job\ngit://reposerver/repo;branch;job2\ngit://reposerver/repo2;branch;job")},
+			triggerMapping{map[string][]string{
+				"git://reposerver/repo|branch":  {"job", "job2"},
+				"git://reposerver/repo2|branch": {"job"},
+			}},
+			false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			stdout := &bytes.Buffer{}
-			if err := ParseMappingFile(tt.args.file, stdout); (err != nil) != tt.wantErr {
+			got, err := ParseMappingFile(tt.args.file)
+			if (err != nil) != tt.wantErr {
 				t.Errorf("ParseMappingFile() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if gotStdout := stdout.String(); gotStdout != tt.wantStdout {
-				t.Errorf("ParseMappingFile() = %v, want %v", gotStdout, tt.wantStdout)
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("ParseMappingFile() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_createJobURL(t *testing.T) {
+	type args struct {
+		jenkinsURL string
+		job        string
+	}
+	tests := []struct {
+		name string
+		args args
+		want string
+	}{
+		{
+			"jenkins_url", args{jenkinsURL: "http://jenkins:8080", job: "test"}, "http://jenkins:8080/job/test/build",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := createJobURL(tt.args.jenkinsURL, tt.args.job); got != tt.want {
+				t.Errorf("createJobURL() = %v, want %v", got, tt.want)
 			}
 		})
 	}

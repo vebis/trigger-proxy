@@ -4,12 +4,11 @@ import (
 	"crypto/tls"
 	"encoding/csv"
 	"errors"
-	"fmt"
+	"flag"
 	"io"
 	"log"
 	"net/http"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -19,14 +18,24 @@ const (
 )
 
 var (
-	mapping     = make(map[string][]string)
-	quietPeriod int
-	timeKeeper  = make(map[string]*time.Timer)
+	mapping    = make(map[string][]string)
+	timeKeeper = make(map[string]*time.Timer)
+
+	JenkinsURL   string
+	JenkinsUser  string
+	JenkinsToken string
+	JenkinsMulti string
+	MappingFile  string
+	QuietPeriod  int
 )
+
+type triggerMapping struct {
+	mapping map[string][]string
+}
 
 func triggerJob(job string) bool {
 	ret := false
-	url := string(os.Getenv("JENKINS_URL") + "/job/" + job + "/build")
+	url := createJobURL(JenkinsURL, job)
 
 	req, err := http.NewRequest("POST", url, nil)
 	if err != nil {
@@ -34,11 +43,11 @@ func triggerJob(job string) bool {
 	}
 
 	// if user and token is defined, use it for basic auth
-	if os.Getenv("JENKINS_USER") != "" {
-		req.SetBasicAuth(os.Getenv("JENKINS_USER"), os.Getenv("JENKINS_TOKEN"))
+	if JenkinsUser != "" {
+		req.SetBasicAuth(JenkinsUser, JenkinsToken)
 	} else {
 		// otherwise use the token for the direct build trigger
-		url = string(url + "?token=" + os.Getenv("JENKINS_TOKEN"))
+		url = string(url + "?token=" + JenkinsToken)
 	}
 
 	tr := &http.Transport{
@@ -64,6 +73,10 @@ func triggerJob(job string) bool {
 	return true
 }
 
+func createJobURL(jenkinsURL, job string) string {
+	return string(jenkinsURL + "/job/" + job + "/build")
+}
+
 func createTimer(job string) {
 	if _, ok := timeKeeper[job]; ok {
 		log.Print("Reseting timer for job ", job)
@@ -71,9 +84,9 @@ func createTimer(job string) {
 		delete(timeKeeper, job)
 	}
 
-	log.Printf("Creating timer for job '%s' with quiet period of %d seconds", job, quietPeriod)
+	log.Printf("Creating timer for job '%s' with quiet period of %d seconds", job, QuietPeriod)
 
-	timer := time.AfterFunc(time.Second*time.Duration(quietPeriod), func() {
+	timer := time.AfterFunc(time.Second*time.Duration(QuietPeriod), func() {
 		log.Print("Quiet period exceeded for job ", job)
 		triggerJob(job)
 		if _, ok := timeKeeper[job]; ok {
@@ -123,7 +136,6 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	log.Print("Searching mappings for key: ", key)
 
 	if len(mapping[key]) == 0 {
-		fmt.Fprintf(w, "No mappings found")
 		log.Print("No mappings found")
 		log.Print("Aborting request handling")
 		return
@@ -142,68 +154,65 @@ func handler(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 	if err := run(os.Args, os.Stdout); err != nil {
-		fmt.Fprintf(os.Stderr, "%s\n", err)
+		log.Fatalf("%s\n", err)
 		os.Exit(exitFail)
 	}
 }
 
+func parseFlags(args []string) {
+	flag.StringVar(&JenkinsURL, "jenkins-url", "", "sets the jenkins url")
+	flag.StringVar(&JenkinsUser, "jenkins-user", "", "jenkins username")
+	flag.StringVar(&JenkinsToken, "jenkins-token", "", "token for user or root token to trigger anonymously")
+	flag.StringVar(&JenkinsMulti, "jenkins-multi", "", "root folder or job name")
+	flag.StringVar(&MappingFile, "mappingfile", "mapping.csv", "path to the mapping file")
+	flag.IntVar(&QuietPeriod, "quietperiod", 10, "defines the time trigger-proxy will wait until the job is triggered")
+
+	flag.Parse()
+}
+
 func run(args []string, stdout io.Writer) error {
-	fmt.Fprintln(stdout, "Starting trigger-proxy ...")
+	log.Println("Starting trigger-proxy ...")
 
-	fmt.Fprintln(stdout, "Checking environment variables")
+	log.Println("Checking environment variables")
 
-	if os.Getenv("JENKINS_URL") == "" {
+	if JenkinsURL == "" {
 		return errors.New("No JENKINS_URL defined")
 	}
 
-	if os.Getenv("JENKINS_USER") == "" {
-		fmt.Fprintln(stdout, "No JENKINS_USER defined")
+	if JenkinsUser == "" {
+		log.Println("No JENKINS_USER defined")
 	}
 
-	if os.Getenv("JENKINS_TOKEN") == "" {
+	if JenkinsToken == "" {
 		return errors.New("No JENKINS_TOKEN defined")
 	}
 
-	if os.Getenv("JENKINS_MULTI") != "" {
-		fmt.Fprintf(stdout, "Found multibranch project: %s\n", os.Getenv("JENKINS_MULTI"))
+	if JenkinsMulti != "" {
+		log.Printf("Found multibranch project: %s\n", JenkinsMulti)
+
+		JenkinsURL = JenkinsURL + "/job/" + JenkinsMulti
 	}
 
-	if os.Getenv("JENKINS_MULTI") != "" {
-		os.Setenv("JENKINS_URL", os.Getenv("JENKINS_URL")+"/job/"+os.Getenv("JENKINS_MULTI"))
-	}
+	log.Printf("Found configured quiet period: %d\n", QuietPeriod)
+	log.Printf("Project URL: %s\n", JenkinsURL)
 
-	quietPeriod = 30
-	if os.Getenv("JENKINS_QUIET") != "" {
-		tQuietPeriod, err := strconv.Atoi(os.Getenv("JENKINS_QUIET"))
-		if err != nil {
-			return errors.New("Quiet Period could not be parsed. Aborting")
-		}
-		quietPeriod = tQuietPeriod
-		fmt.Fprintf(stdout, "Found configured quiet period: %d\n", quietPeriod)
-	}
+	log.Printf("Found configured mapping file: %s\n", MappingFile)
 
-	fmt.Fprintf(stdout, "Project URL: %s\n", os.Getenv("JENKINS_URL"))
-
-	mappingfile := "mapping.csv"
-	if os.Getenv("MAPPING_FILE") != "" {
-		mappingfile = os.Getenv("MAPPING_FILE")
-		fmt.Fprintf(stdout, "Found configured mapping file: %s\n", mappingfile)
-	}
-
-	if err := ProcessMappingFile(mappingfile, stdout); err != nil {
+	if err := ProcessMappingFile(MappingFile); err != nil {
 		return err
 	}
 
 	http.HandleFunc("/", handler)
 
-	fmt.Fprintln(stdout, "Serving on port 8080")
+	log.Println("Serving on port 8080")
 	http.ListenAndServe(":8080", nil)
 
 	return nil
 }
 
-func ProcessMappingFile(mappingfile string, stdout io.Writer) error {
-	fmt.Fprintf(stdout, "Reading mapping from file: %s\n", mappingfile)
+// ProcessMappingFile processes the file at given path
+func ProcessMappingFile(mappingfile string) error {
+	log.Printf("Reading mapping from file: %s\n", mappingfile)
 
 	file, err := os.Open(mappingfile)
 	if err != nil {
@@ -211,16 +220,21 @@ func ProcessMappingFile(mappingfile string, stdout io.Writer) error {
 	}
 	defer file.Close()
 
-	perr := ParseMappingFile(file, stdout)
+	tm, perr := ParseMappingFile(file)
 
 	if perr != nil {
 		return err
 	}
 
+	mapping = tm.mapping
+
 	return nil
 }
 
-func ParseMappingFile(file io.Reader, stdout io.Writer) error {
+// ParseMappingFile parses the given file and returns the mapping
+func ParseMappingFile(file io.Reader) (triggerMapping, error) {
+	var m = make(map[string][]string)
+
 	reader := csv.NewReader(file)
 	reader.Comma = ';'
 	lineCount := 0
@@ -230,19 +244,20 @@ func ParseMappingFile(file io.Reader, stdout io.Writer) error {
 		if err == io.EOF {
 			break
 		} else if err != nil {
-			return err
+			return triggerMapping{mapping: nil}, err
 		}
 
 		key := BuildMappingKey([]string{record[0], record[1]})
-		mapping[key] = append(mapping[key], record[2])
+		m[key] = append(m[key], record[2])
 		lineCount++
 	}
 
-	fmt.Fprintf(stdout, "Successfully read mappings: %d\n", lineCount)
+	log.Printf("Successfully read mappings: %d\n", lineCount)
 
-	return nil
+	return triggerMapping{mapping: m}, nil
 }
 
+// BuildMappingKey returns the mapping for a given set of strings
 func BuildMappingKey(keys []string) string {
 	return strings.Join(keys, "|")
 }
