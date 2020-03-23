@@ -27,6 +27,7 @@ var (
 	JenkinsMulti string
 	MappingFile  string
 	QuietPeriod  int
+	FileMatching bool
 )
 
 type triggerMapping struct {
@@ -34,12 +35,11 @@ type triggerMapping struct {
 }
 
 func triggerJob(job string) bool {
-	ret := false
 	url := createJobURL(JenkinsURL, job)
 
 	req, err := http.NewRequest("POST", url, nil)
 	if err != nil {
-		return ret
+		return false
 	}
 
 	// if user and token is defined, use it for basic auth
@@ -61,7 +61,7 @@ func triggerJob(job string) bool {
 	if err != nil {
 		log.Print("Error:", err)
 
-		return ret
+		return false
 	}
 
 	if !(200 <= resp.StatusCode && resp.StatusCode <= 299) {
@@ -103,25 +103,27 @@ func createTimer(job string) {
 	return
 }
 
-func handler(w http.ResponseWriter, r *http.Request) {
-	log.Print("Handling new request")
+func ParseGetRequest(r *http.Request) (string, string, []string, error) {
+	repo := ""
+	branch := ""
+	files := []string{}
 
+	log.Print("parsing get request")
 	repos, ok := r.URL.Query()["repo"]
 
 	if !ok || len(repos) < 1 {
 		log.Print("Repo is missing")
 		log.Print("Aborting request handling")
 
-		return
+		return repo, branch, files, errors.New("repo is missing")
 	}
 
-	repo := repos[0]
+	repo = repos[0]
 
 	log.Print("Parsed repo:", repo)
 
 	branchs, ok := r.URL.Query()["branch"]
 
-	var branch string
 	if !ok || len(branchs) < 1 {
 		log.Print("Branch is missing. Assuming master")
 		branch = "master"
@@ -130,6 +132,22 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	log.Print("Parsed branch: ", branch)
+
+	return repo, branch, files, nil
+}
+
+func handler(w http.ResponseWriter, r *http.Request) {
+	log.Print("Handling new request")
+
+	repo, branch, files, err := ParseGetRequest(r)
+
+	if err != nil {
+		log.Print("Aborting request handling")
+
+		return
+	}
+
+	log.Print("Files: ", files)
 
 	key := BuildMappingKey([]string{repo, branch})
 
@@ -166,6 +184,7 @@ func parseFlags(args []string) {
 	flag.StringVar(&JenkinsMulti, "jenkins-multi", "", "root folder or job name")
 	flag.StringVar(&MappingFile, "mappingfile", "mapping.csv", "path to the mapping file")
 	flag.IntVar(&QuietPeriod, "quietperiod", 10, "defines the time trigger-proxy will wait until the job is triggered")
+	flag.BoolVar(&FileMatching, "filematch", false, "try to match for file names")
 
 	flag.Parse()
 }
@@ -220,7 +239,7 @@ func ProcessMappingFile(mappingfile string) error {
 	}
 	defer file.Close()
 
-	tm, perr := ParseMappingFile(file)
+	tm, perr := ParseMappingFile(file, FileMatching)
 
 	if perr != nil {
 		return err
@@ -232,7 +251,7 @@ func ProcessMappingFile(mappingfile string) error {
 }
 
 // ParseMappingFile parses the given file and returns the mapping
-func ParseMappingFile(file io.Reader) (triggerMapping, error) {
+func ParseMappingFile(file io.Reader, filematch bool) (triggerMapping, error) {
 	var m = make(map[string][]string)
 
 	reader := csv.NewReader(file)
@@ -247,7 +266,15 @@ func ParseMappingFile(file io.Reader) (triggerMapping, error) {
 			return triggerMapping{mapping: nil}, err
 		}
 
-		key := BuildMappingKey([]string{record[0], record[1]})
+		var key string
+		if filematch {
+			if len(record) != 4 {
+				return triggerMapping{mapping: nil}, errors.New("no file matching information provided in mapping file")
+			}
+			key = BuildMappingKey([]string{record[0], record[1], record[3]})
+		} else {
+			key = BuildMappingKey([]string{record[0], record[1]})
+		}
 		m[key] = append(m[key], record[2])
 		lineCount++
 	}
