@@ -118,6 +118,10 @@ func TestParseGetRequest(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	reqF, err := http.NewRequest("GET", "/?repo=git://repo&branch=master&file=1&file=a/b/2", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
 	type args struct {
 		r *http.Request
 	}
@@ -143,6 +147,14 @@ func TestParseGetRequest(t *testing.T) {
 			"git://repo",
 			"master",
 			[]string{},
+			false,
+		},
+		{
+			"common request with files",
+			args{r: reqF},
+			"git://repo",
+			"master",
+			[]string{"1", "a/b/2"},
 			false,
 		},
 	}

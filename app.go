@@ -109,29 +109,35 @@ func ParseGetRequest(r *http.Request) (string, string, []string, error) {
 	files := []string{}
 
 	log.Print("parsing get request")
-	repos, ok := r.URL.Query()["repo"]
+	reqRepo, ok := r.URL.Query()["repo"]
 
-	if !ok || len(repos) < 1 {
+	if !ok || len(reqRepo) < 1 {
 		log.Print("Repo is missing")
 		log.Print("Aborting request handling")
 
 		return repo, branch, files, errors.New("repo is missing")
 	}
 
-	repo = repos[0]
+	repo = reqRepo[0]
 
-	log.Print("Parsed repo:", repo)
+	log.Print("Parsed repo: ", repo)
 
-	branchs, ok := r.URL.Query()["branch"]
+	reqBranch, ok := r.URL.Query()["branch"]
 
-	if !ok || len(branchs) < 1 {
+	if !ok || len(reqBranch) < 1 {
 		log.Print("Branch is missing. Assuming master")
 		branch = "master"
 	} else {
-		branch = branchs[0]
+		branch = reqBranch[0]
 	}
 
 	log.Print("Parsed branch: ", branch)
+
+	reqFiles, ok := r.URL.Query()["file"]
+
+	if ok && len(reqFiles) > 0 {
+		files = reqFiles
+	}
 
 	return repo, branch, files, nil
 }
