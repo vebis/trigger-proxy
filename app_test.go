@@ -42,32 +42,32 @@ func TestParseMappingFile(t *testing.T) {
 	}{
 		{
 			"single_repo",
-			args{file: strings.NewReader("git://reposerver/repo;branch;job;"), filematch: false},
+			args{file: strings.NewReader("git://repo/repo;branch;job;"), filematch: false},
 			triggerMapping{map[string][]string{
-				"git://reposerver/repo|branch": {"job"},
+				"git://repo/repo|branch": {"job"},
 			}},
 			false,
 		},
 		{
 			"single_repo_filematch",
-			args{file: strings.NewReader("git://reposerver/repo;branch;job;repo"), filematch: true},
+			args{file: strings.NewReader("git://repo/repo;branch;job;repo"), filematch: true},
 			triggerMapping{map[string][]string{
-				"git://reposerver/repo|branch|repo": {"job"},
+				"git://repo/repo|branch|repo": {"job"},
 			}},
 			false,
 		},
 		{
 			"single_repo_filematch_fail",
-			args{file: strings.NewReader("git://reposerver/repo;branch;job"), filematch: true},
+			args{file: strings.NewReader("git://repo/repo;branch;job"), filematch: true},
 			triggerMapping{mapping: nil},
 			true,
 		},
 		{
 			"three_repos",
-			args{file: strings.NewReader("git://reposerver/repo;branch;job\ngit://reposerver/repo;branch;job2\ngit://reposerver/repo2;branch;job"), filematch: false},
+			args{file: strings.NewReader("git://repo/repo;branch;job\ngit://repo/repo;branch;job2\ngit://repo/repo2;branch;job"), filematch: false},
 			triggerMapping{map[string][]string{
-				"git://reposerver/repo|branch":  {"job", "job2"},
-				"git://reposerver/repo2|branch": {"job"},
+				"git://repo/repo|branch":  {"job", "job2"},
+				"git://repo/repo2|branch": {"job"},
 			}},
 			false,
 		},
@@ -124,6 +124,7 @@ func TestParseGetRequest(t *testing.T) {
 	}
 	type args struct {
 		r *http.Request
+		filematch bool
 	}
 	tests := []struct {
 		name    string
@@ -135,7 +136,7 @@ func TestParseGetRequest(t *testing.T) {
 	}{
 		{
 			"common request with branch",
-			args{r: reqSb},
+			args{r: reqSb, filematch: false},
 			"git://repo",
 			"devel",
 			[]string{},
@@ -143,7 +144,7 @@ func TestParseGetRequest(t *testing.T) {
 		},
 		{
 			"common request without branch",
-			args{r: reqS},
+			args{r: reqS, filematch: false},
 			"git://repo",
 			"master",
 			[]string{},
@@ -151,16 +152,24 @@ func TestParseGetRequest(t *testing.T) {
 		},
 		{
 			"common request with files",
-			args{r: reqF},
+			args{r: reqF, filematch: true},
 			"git://repo",
 			"master",
 			[]string{"1", "a/b/2"},
 			false,
 		},
+		{
+			"common request with files without filematch",
+			args{r: reqF, filematch: false},
+			"git://repo",
+			"master",
+			[]string{},
+			false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, got1, got2, err := ParseGetRequest(tt.args.r)
+			got, got1, got2, err := ParseGetRequest(tt.args.r, tt.args.filematch)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ParseGetRequest() error = %v, wantErr %v", err, tt.wantErr)
 				return

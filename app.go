@@ -103,7 +103,7 @@ func createTimer(job string) {
 	return
 }
 
-func ParseGetRequest(r *http.Request) (string, string, []string, error) {
+func ParseGetRequest(r *http.Request, filematch bool) (string, string, []string, error) {
 	repo := ""
 	branch := ""
 	files := []string{}
@@ -133,10 +133,12 @@ func ParseGetRequest(r *http.Request) (string, string, []string, error) {
 
 	log.Print("Parsed branch: ", branch)
 
-	reqFiles, ok := r.URL.Query()["file"]
+	if filematch {
+		reqFiles, ok := r.URL.Query()["file"]
 
-	if ok && len(reqFiles) > 0 {
-		files = reqFiles
+		if ok && len(reqFiles) > 0 {
+			files = reqFiles
+		}
 	}
 
 	return repo, branch, files, nil
@@ -145,7 +147,7 @@ func ParseGetRequest(r *http.Request) (string, string, []string, error) {
 func handler(w http.ResponseWriter, r *http.Request) {
 	log.Print("Handling new request")
 
-	repo, branch, files, err := ParseGetRequest(r)
+	repo, branch, files, err := ParseGetRequest(r, FileMatching)
 
 	if err != nil {
 		log.Print("Aborting request handling")
