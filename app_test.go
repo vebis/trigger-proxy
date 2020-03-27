@@ -123,7 +123,7 @@ func TestParseGetRequest(t *testing.T) {
 		t.Fatal(err)
 	}
 	type args struct {
-		r *http.Request
+		r         *http.Request
 		filematch bool
 	}
 	tests := []struct {
@@ -182,6 +182,92 @@ func TestParseGetRequest(t *testing.T) {
 			}
 			if !reflect.DeepEqual(got2, tt.want2) {
 				t.Errorf("ParseGetRequest() got2 = %v, want %v", got2, tt.want2)
+			}
+		})
+	}
+}
+
+func Test_evalMappingKeys(t *testing.T) {
+	type args struct {
+		repo      string
+		branch    string
+		files     []string
+		filematch bool
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    []string
+		wantErr bool
+	}{
+		{
+			"simple_without_files",
+			args{
+				repo:      "git://repo/test",
+				branch:    "master",
+				files:     []string{},
+				filematch: false,
+			},
+			[]string{"git://repo/test|master"},
+			false,
+		},
+		{
+			"simple_with_files",
+			args{
+				repo:      "git://repo/test",
+				branch:    "master",
+				files:     []string{"a", "b"},
+				filematch: true,
+			},
+			[]string{"git://repo/test|master|a", "git://repo/test|master|b"},
+			false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := evalMappingKeys(tt.args.repo, tt.args.branch, tt.args.files, tt.args.filematch)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("evalMappingKeys() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("evalMappingKeys() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_matchMappingKeys(t *testing.T) {
+	err := AssignMapping(strings.NewReader("git://repo/repo;branch;job;"), false)
+	if err != nil {
+		return
+	}
+	type args struct {
+		keys      []string
+		filematch bool
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    []string
+		wantErr bool
+	}{
+		{
+			"simple",
+			args{keys: []string{"git://repo/repo|branch"}, filematch: false},
+			[]string{"job"},
+			false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := matchMappingKeys(tt.args.keys, tt.args.filematch)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("matchMappingKeys() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("matchMappingKeys() = %v, want %v", got, tt.want)
 			}
 		})
 	}

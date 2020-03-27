@@ -21,13 +21,14 @@ var (
 	mapping    = make(map[string][]string)
 	timeKeeper = make(map[string]*time.Timer)
 
-	JenkinsURL   string
-	JenkinsUser  string
-	JenkinsToken string
-	JenkinsMulti string
-	MappingFile  string
-	QuietPeriod  int
-	FileMatching bool
+	JenkinsURL      string
+	JenkinsUser     string
+	JenkinsToken    string
+	JenkinsMulti    string
+	MappingFile     string
+	QuietPeriod     int
+	FileMatching    bool
+	ComponentPrefix string
 )
 
 type triggerMapping struct {
@@ -126,6 +127,7 @@ func ParseGetRequest(r *http.Request, filematch bool) (string, string, []string,
 
 	if !ok || len(reqBranch) < 1 {
 		log.Print("Branch is missing. Assuming master")
+
 		branch = "master"
 	} else {
 		branch = reqBranch[0]
@@ -144,38 +146,76 @@ func ParseGetRequest(r *http.Request, filematch bool) (string, string, []string,
 	return repo, branch, files, nil
 }
 
+func evalMappingKeys(repo, branch string, files []string, filematch bool) ([]string, error) {
+	var keys []string
+	if filematch {
+		for _, file := range files {
+			keys = append(keys, BuildMappingKey([]string{repo, branch, file}))
+		}
+	} else {
+		key := BuildMappingKey([]string{repo, branch})
+
+		keys = append(keys, key)
+	}
+
+	return keys, nil
+}
+
+func matchMappingKeys(keys []string, filematch bool) ([]string, error) {
+	var hits []string
+	for _, key := range keys {
+		log.Print("Searching mappings for key: ", key)
+
+		if len(mapping[key]) == 0 {
+			return nil, errors.New("no mappings found")
+		}
+
+		log.Print("Number of mappings found: ", len(mapping[key]))
+		for _, hit := range mapping[key] {
+			hits = append(hits, hit)
+		}
+
+	}
+
+	return hits, nil
+}
+
+func ProcessMatching(repo, branch string, files []string, filematch bool) error {
+	keys, err := evalMappingKeys(repo, branch, files, filematch)
+	if err != nil {
+		return err
+	}
+
+	jobs, err := matchMappingKeys(keys, filematch)
+	if err != nil {
+		return err
+	}
+
+	for _, job := range jobs {
+		createTimer(job)
+	}
+	log.Print("End processing mappings")
+
+	return nil
+}
+
 func handler(w http.ResponseWriter, r *http.Request) {
 	log.Print("Handling new request")
 
 	repo, branch, files, err := ParseGetRequest(r, FileMatching)
 
 	if err != nil {
-		log.Print("Aborting request handling")
+		log.Print(err)
+		log.Print("aborting request handling")
 
 		return
 	}
 
-	log.Print("Files: ", files)
-
-	key := BuildMappingKey([]string{repo, branch})
-
-	log.Print("Searching mappings for key: ", key)
-
-	if len(mapping[key]) == 0 {
-		log.Print("No mappings found")
-		log.Print("Aborting request handling")
-		return
+	if err := ProcessMatching(repo, branch, files, FileMatching); err != nil {
+		log.Print(err)
 	}
 
-	log.Print("Number of mappings found: ", len(mapping[key]))
-
-	log.Print("Start processing mappings")
-	for _, job := range mapping[key] {
-		createTimer(job)
-	}
-	log.Print("End processing mappings")
-
-	log.Print("Handling request finished")
+	log.Print("handling of request finished")
 }
 
 func main() {
@@ -247,9 +287,19 @@ func ProcessMappingFile(mappingfile string) error {
 	}
 	defer file.Close()
 
-	tm, perr := ParseMappingFile(file, FileMatching)
+	perr := AssignMapping(file, FileMatching)
 
 	if perr != nil {
+		return perr
+	}
+
+	return nil
+}
+
+func AssignMapping(file io.Reader, filematch bool) error {
+	tm, err := ParseMappingFile(file, FileMatching)
+
+	if err != nil {
 		return err
 	}
 
