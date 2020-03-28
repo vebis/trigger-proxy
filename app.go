@@ -167,7 +167,7 @@ func matchMappingKeys(keys []string, filematch bool) ([]string, error) {
 		log.Print("Searching mappings for key: ", key)
 
 		if len(mapping[key]) == 0 {
-			return nil, errors.New("no mappings found")
+			return []string{}, errors.New("no mappings found")
 		}
 
 		log.Print("Number of mappings found: ", len(mapping[key]))

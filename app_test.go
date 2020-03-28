@@ -122,6 +122,10 @@ func TestParseGetRequest(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	reqNr, err := http.NewRequest("GET", "/", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
 	type args struct {
 		r         *http.Request
 		filematch bool
@@ -165,6 +169,14 @@ func TestParseGetRequest(t *testing.T) {
 			"master",
 			[]string{},
 			false,
+		},
+		{
+			"no repo specified",
+			args{r: reqNr, filematch: false},
+			"",
+			"",
+			[]string{},
+			true,
 		},
 	}
 	for _, tt := range tests {
@@ -237,7 +249,7 @@ func Test_evalMappingKeys(t *testing.T) {
 	}
 }
 
-func Test_matchMappingKeys(t *testing.T) {
+func Test_matchMappingKeysNoFileMatch(t *testing.T) {
 	err := AssignMapping(strings.NewReader("git://repo/repo;branch;job;"), false)
 	if err != nil {
 		return
@@ -257,6 +269,12 @@ func Test_matchMappingKeys(t *testing.T) {
 			args{keys: []string{"git://repo/repo|branch"}, filematch: false},
 			[]string{"job"},
 			false,
+		},
+		{
+			"no match",
+			args{keys: []string{"git://repo/repo2|branch"}, filematch: false},
+			[]string{},
+			true,
 		},
 	}
 	for _, tt := range tests {
