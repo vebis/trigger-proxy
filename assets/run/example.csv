@@ -5,3 +5,4 @@ git://gitserver/git/testrepo3,master,job2
 git://gitserver/git/testrepo1,branch_1,job3
 git://anothergitserver/git/testrepo2,branch_1,job3
 git://anothergitserver/git/testrepo2,branch_2,job2
+git://gitserver/semantic/testrepo1,master,job1

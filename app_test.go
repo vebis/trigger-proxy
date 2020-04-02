@@ -42,7 +42,7 @@ func TestParseMappingFile(t *testing.T) {
 	}{
 		{
 			"single_repo",
-			args{file: strings.NewReader("git://repo/repo;branch;job;"), filematch: false},
+			args{file: strings.NewReader("git://repo/repo,branch,job,"), filematch: false},
 			triggerMapping{map[string][]string{
 				"git://repo/repo|branch": {"job"},
 			}},
@@ -50,7 +50,7 @@ func TestParseMappingFile(t *testing.T) {
 		},
 		{
 			"single_repo_filematch",
-			args{file: strings.NewReader("git://repo/repo;branch;job;repo"), filematch: true},
+			args{file: strings.NewReader("git://repo/repo,branch,job,repo"), filematch: true},
 			triggerMapping{map[string][]string{
 				"git://repo/repo|branch|repo": {"job"},
 			}},
@@ -58,13 +58,13 @@ func TestParseMappingFile(t *testing.T) {
 		},
 		{
 			"single_repo_filematch_fail",
-			args{file: strings.NewReader("git://repo/repo;branch;job"), filematch: true},
+			args{file: strings.NewReader("git://repo/repo,branch,job"), filematch: true},
 			triggerMapping{mapping: nil},
 			true,
 		},
 		{
 			"three_repos",
-			args{file: strings.NewReader("git://repo/repo;branch;job\ngit://repo/repo;branch;job2\ngit://repo/repo2;branch;job"), filematch: false},
+			args{file: strings.NewReader("git://repo/repo,branch,job\ngit://repo/repo,branch,job2\ngit://repo/repo2,branch,job"), filematch: false},
 			triggerMapping{map[string][]string{
 				"git://repo/repo|branch":  {"job", "job2"},
 				"git://repo/repo2|branch": {"job"},
@@ -201,10 +201,11 @@ func TestParseGetRequest(t *testing.T) {
 
 func Test_evalMappingKeys(t *testing.T) {
 	type args struct {
-		repo      string
-		branch    string
-		files     []string
-		filematch bool
+		repo         string
+		branch       string
+		files        []string
+		filematch    bool
+		semanticrepo bool
 	}
 	tests := []struct {
 		name    string
@@ -215,10 +216,11 @@ func Test_evalMappingKeys(t *testing.T) {
 		{
 			"simple_without_files",
 			args{
-				repo:      "git://repo/test",
-				branch:    "master",
-				files:     []string{},
-				filematch: false,
+				repo:         "git://repo/test",
+				branch:       "master",
+				files:        []string{},
+				filematch:    false,
+				semanticrepo: false,
 			},
 			[]string{"git://repo/test|master"},
 			false,
@@ -226,10 +228,11 @@ func Test_evalMappingKeys(t *testing.T) {
 		{
 			"simple_with_files",
 			args{
-				repo:      "git://repo/test",
-				branch:    "master",
-				files:     []string{"a", "b"},
-				filematch: true,
+				repo:         "git://repo/test",
+				branch:       "master",
+				files:        []string{"a", "b"},
+				filematch:    true,
+				semanticrepo: false,
 			},
 			[]string{"git://repo/test|master|a", "git://repo/test|master|b"},
 			false,
@@ -237,7 +240,7 @@ func Test_evalMappingKeys(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := evalMappingKeys(tt.args.repo, tt.args.branch, tt.args.files, tt.args.filematch)
+			got, err := evalMappingKeys(tt.args.repo, tt.args.branch, tt.args.files, tt.args.filematch, tt.args.semanticrepo)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("evalMappingKeys() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -250,7 +253,7 @@ func Test_evalMappingKeys(t *testing.T) {
 }
 
 func Test_matchMappingKeysNoFileMatch(t *testing.T) {
-	err := AssignMapping(strings.NewReader("git://repo/repo;branch;job;"), false)
+	err := AssignMapping(strings.NewReader("git://repo/repo,branch,job,"), false)
 	if err != nil {
 		return
 	}
@@ -286,6 +289,100 @@ func Test_matchMappingKeysNoFileMatch(t *testing.T) {
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("matchMappingKeys() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_matchMappingKeysFileMatch(t *testing.T) {
+	err := AssignMapping(strings.NewReader("git://repo/repo,branch,job,cli"), false)
+	if err != nil {
+		return
+	}
+	type args struct {
+		keys      []string
+		filematch bool
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    []string
+		wantErr bool
+	}{
+		{
+			"simple_direct_hit",
+			args{keys: []string{"git://repo/repo|branch|cli"}, filematch: true},
+			[]string{"job"},
+			false,
+		},
+		{
+			"simple_indirect_hit",
+			args{keys: []string{"git://repo/repo|branch|cli/other"}, filematch: true},
+			[]string{"job"},
+			false,
+		},
+		{
+			"no match",
+			args{keys: []string{"git://repo/repo2|branch|bla"}, filematch: true},
+			[]string{},
+			true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := matchMappingKeys(tt.args.keys, tt.args.filematch)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("matchMappingKeys() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("matchMappingKeys() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+// func TestSemanticRepoDefined(t *testing.T) {
+// 	parseFlags([]string{"-semanticrepo", "git://repo/special"})
+// 	tests := []struct {
+// 		name string
+// 		want bool
+// 	}{
+// 		{
+// 			"positiv",
+// 			true,
+// 		},
+// 	}
+// 	for _, tt := range tests {
+// 		t.Run(tt.name, func(t *testing.T) {
+// 			if got := SemanticRepoDefined(); got != tt.want {
+// 				t.Errorf("SemanticRepoDefined() = %v, want %v", got, tt.want)
+// 			}
+// 		})
+// 	}
+// }
+
+func TestGetSemanticRepoName(t *testing.T) {
+	type args struct {
+		repo string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    string
+		wantErr bool
+	}{
+		// TODO: Add test cases.
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := GetSemanticRepoName(tt.args.repo)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("GetSemanticRepoName() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("GetSemanticRepoName() = %v, want %v", got, tt.want)
 			}
 		})
 	}

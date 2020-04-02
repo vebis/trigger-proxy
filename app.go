@@ -21,14 +21,14 @@ var (
 	mapping    = make(map[string][]string)
 	timeKeeper = make(map[string]*time.Timer)
 
-	JenkinsURL      string
-	JenkinsUser     string
-	JenkinsToken    string
-	JenkinsMulti    string
-	MappingFile     string
-	QuietPeriod     int
-	FileMatching    bool
-	ComponentPrefix string
+	JenkinsURL   string
+	JenkinsUser  string
+	JenkinsToken string
+	JenkinsMulti string
+	MappingFile  string
+	QuietPeriod  int
+	FileMatching bool
+	SemanticRepo string
 )
 
 type triggerMapping struct {
@@ -146,11 +146,24 @@ func ParseGetRequest(r *http.Request, filematch bool) (string, string, []string,
 	return repo, branch, files, nil
 }
 
-func evalMappingKeys(repo, branch string, files []string, filematch bool) ([]string, error) {
+func evalMappingKeys(repo, branch string, files []string, filematch, semantic bool) ([]string, error) {
 	var keys []string
 	if filematch {
-		for _, file := range files {
-			keys = append(keys, BuildMappingKey([]string{repo, branch, file}))
+		if semantic == true {
+			pkgname, err := GetSemanticRepoName(repo)
+			if err == nil && pkgname != "" {
+				for _, file := range files {
+					keys = append(keys, BuildMappingKey([]string{repo, branch, pkgname + "/" + file}))
+				}
+			} else {
+				for _, file := range files {
+					keys = append(keys, BuildMappingKey([]string{repo, branch, file}))
+				}
+			}
+		} else {
+			for _, file := range files {
+				keys = append(keys, BuildMappingKey([]string{repo, branch, file}))
+			}
 		}
 	} else {
 		key := BuildMappingKey([]string{repo, branch})
@@ -161,27 +174,43 @@ func evalMappingKeys(repo, branch string, files []string, filematch bool) ([]str
 	return keys, nil
 }
 
+func removeLastRune(s string) string {
+	r := []rune(s)
+	return string(r[:len(r)-1])
+}
+
 func matchMappingKeys(keys []string, filematch bool) ([]string, error) {
 	var hits []string
 	for _, key := range keys {
 		log.Print("Searching mappings for key: ", key)
 
-		if len(mapping[key]) == 0 {
-			return []string{}, errors.New("no mappings found")
+		if len(mapping[key]) > 0 {
+			for _, hit := range mapping[key] {
+				hits = append(hits, hit)
+			}
+		} else if filematch {
+			for len(key) > 0 {
+				key = removeLastRune(key)
+				if len(mapping[key]) > 0 {
+					for _, hit := range mapping[key] {
+						hits = append(hits, hit)
+					}
+				}
+			}
 		}
-
-		log.Print("Number of mappings found: ", len(mapping[key]))
-		for _, hit := range mapping[key] {
-			hits = append(hits, hit)
-		}
-
 	}
+
+	if len(hits) == 0 {
+		return []string{}, errors.New("no mappings found")
+	}
+
+	log.Print("Number of mappings found: ", len(hits))
 
 	return hits, nil
 }
 
 func ProcessMatching(repo, branch string, files []string, filematch bool) error {
-	keys, err := evalMappingKeys(repo, branch, files, filematch)
+	keys, err := evalMappingKeys(repo, branch, files, filematch, SemanticRepoDefined())
 	if err != nil {
 		return err
 	}
@@ -194,13 +223,13 @@ func ProcessMatching(repo, branch string, files []string, filematch bool) error 
 	for _, job := range jobs {
 		createTimer(job)
 	}
-	log.Print("End processing mappings")
+	log.Print("end processing mappings")
 
 	return nil
 }
 
 func handler(w http.ResponseWriter, r *http.Request) {
-	log.Print("Handling new request")
+	log.Print("handling new request")
 
 	repo, branch, files, err := ParseGetRequest(r, FileMatching)
 
@@ -218,6 +247,26 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	log.Print("handling of request finished")
 }
 
+func SemanticRepoDefined() bool {
+	if SemanticRepo == "" {
+		return false
+	}
+
+	return true
+}
+
+func GetSemanticRepoName(repo string) (string, error) {
+	reponame := strings.ReplaceAll(repo, ".git", "")
+	reponame = strings.ReplaceAll(reponame, SemanticRepo, "")
+
+	if strings.ContainsAny(reponame, "/:.") {
+		return "", errors.New("semantic repo reduction failed")
+	}
+
+	log.Printf("found semantic repo: %s\n", reponame)
+	return reponame, nil
+}
+
 func main() {
 	if err := run(os.Args, os.Stdout); err != nil {
 		log.Fatalf("%s\n", err)
@@ -233,12 +282,15 @@ func parseFlags(args []string) {
 	flag.StringVar(&MappingFile, "mappingfile", "mapping.csv", "path to the mapping file")
 	flag.IntVar(&QuietPeriod, "quietperiod", 10, "defines the time trigger-proxy will wait until the job is triggered")
 	flag.BoolVar(&FileMatching, "filematch", false, "try to match for file names")
+	flag.StringVar(&SemanticRepo, "semanticrepo", "", "repo prefix to handle as component repository")
 
 	flag.Parse()
 }
 
 func run(args []string, stdout io.Writer) error {
 	log.Println("Starting trigger-proxy ...")
+
+	parseFlags(args)
 
 	log.Println("Checking environment variables")
 
@@ -313,7 +365,7 @@ func ParseMappingFile(file io.Reader, filematch bool) (triggerMapping, error) {
 	var m = make(map[string][]string)
 
 	reader := csv.NewReader(file)
-	reader.Comma = ';'
+	reader.Comma = ','
 	lineCount := 0
 	for {
 		record, err := reader.Read()
