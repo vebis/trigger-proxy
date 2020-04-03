@@ -92,10 +92,9 @@ func Test_evalMappingKeys(t *testing.T) {
 		semanticrepo string
 	}
 	tests := []struct {
-		name    string
-		args    args
-		want    []string
-		wantErr bool
+		name string
+		args args
+		want []string
 	}{
 		{
 			"simple_without_files",
@@ -107,7 +106,6 @@ func Test_evalMappingKeys(t *testing.T) {
 				semanticrepo: "",
 			},
 			[]string{"git://repo/test|master"},
-			false,
 		},
 		{
 			"simple_with_files",
@@ -119,7 +117,6 @@ func Test_evalMappingKeys(t *testing.T) {
 				semanticrepo: "",
 			},
 			[]string{"git://repo/test|master|a", "git://repo/test|master|b"},
-			false,
 		},
 		{
 			"matching_semantic_repo",
@@ -131,7 +128,6 @@ func Test_evalMappingKeys(t *testing.T) {
 				semanticrepo: "git://repo/magic/",
 			},
 			[]string{"git://repo/magic/test.git|master|test/a", "git://repo/magic/test.git|master|test/b"},
-			false,
 		},
 		{
 			"non_matching_semantic_repo",
@@ -143,16 +139,11 @@ func Test_evalMappingKeys(t *testing.T) {
 				semanticrepo: "git://repo/magic/",
 			},
 			[]string{"git://repo/test.git|master|a", "git://repo/test.git|master|b"},
-			false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := evalMappingKeys(tt.args.repo, tt.args.branch, tt.args.files, tt.args.filematch, tt.args.semanticrepo)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("evalMappingKeys() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
+			got := evalMappingKeys(tt.args.repo, tt.args.branch, tt.args.files, tt.args.filematch, tt.args.semanticrepo)
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("evalMappingKeys() = %v, want %v", got, tt.want)
 			}

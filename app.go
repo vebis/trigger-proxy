@@ -91,7 +91,7 @@ func run(args []string, stdout io.Writer) error {
 		return err
 	}
 
-	http.HandleFunc("/", s.handlePlainGet)
+	http.HandleFunc("/", s.handlePlainGet())
 
 	log.Println("Serving on port 8080")
 	http.ListenAndServe(":8080", nil)

@@ -35,13 +35,10 @@ func (s *server) matchMappingKeys(keys []string, filematch bool) ([]string, erro
 	return hits, nil
 }
 
-func (s *server) processMatching(repo, branch string, files []string, filematch bool) error {
-	keys, err := evalMappingKeys(repo, branch, files, filematch, s.param.SemanticRepo)
-	if err != nil {
-		return err
-	}
+func (s *server) processMatching(repo, branch string, files []string) error {
+	keys := evalMappingKeys(repo, branch, files, s.param.FileMatching, s.param.SemanticRepo)
 
-	jobs, err := s.matchMappingKeys(keys, filematch)
+	jobs, err := s.matchMappingKeys(keys, s.param.FileMatching)
 	if err != nil {
 		return err
 	}

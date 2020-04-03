@@ -22,7 +22,7 @@ func removeLastRune(s string) string {
 	return string(r[:len(r)-1])
 }
 
-func evalMappingKeys(repo, branch string, files []string, filematch bool, sematicrepo string) ([]string, error) {
+func evalMappingKeys(repo, branch string, files []string, filematch bool, sematicrepo string) []string {
 	var keys []string
 	if filematch {
 		if sematicrepo != "" {
@@ -47,7 +47,7 @@ func evalMappingKeys(repo, branch string, files []string, filematch bool, semati
 		keys = append(keys, key)
 	}
 
-	return keys, nil
+	return keys
 }
 
 func getSemanticRepoName(repo, semanticRepo string) (string, error) {
