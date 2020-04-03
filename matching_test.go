@@ -2,6 +2,7 @@ package proxy
 
 import (
 	"reflect"
+	"sort"
 	"testing"
 	"time"
 )
@@ -262,6 +263,8 @@ func Test_server_processMatching(t *testing.T) {
 			for k := range tt.s.timeKeeper {
 				got = append(got, k)
 			}
+			sort.Strings(got)
+			sort.Strings(tt.wantTimers)
 			if !reflect.DeepEqual(got, tt.wantTimers) {
 				t.Errorf("server.processMatching() = %v, want %v", got, tt.wantTimers)
 			}
