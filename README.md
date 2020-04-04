@@ -56,7 +56,7 @@ sudo docker run vebis/trigger-proxy \
 If you send an HTTP GET request like:
 
 ```bash
-curl http://trigger-proxy:8080/?repo=https://gitserver/monorepo.git\&branch=master\&file=subdir1/README.md
+curl http://trigger-proxy:8080/?repo=https://gitserver/monorepo.git\&branch=master\&file=subdir2/README.md
 ```
 
 Jenkins job "jenkinsjobproj2" will be triggered.
