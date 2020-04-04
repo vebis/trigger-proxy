@@ -10,15 +10,15 @@ import (
 
 // processMappingFile processes the file at given path
 func (s *server) processMappingFile() error {
-	log.Printf("Reading mapping from file: %s\n", s.param.MappingFile)
+	log.Printf("Reading mapping from file: %s\n", s.param.proxy.MappingFile)
 
-	file, err := os.Open(s.param.MappingFile)
+	file, err := os.Open(s.param.proxy.MappingFile)
 	if err != nil {
 		return err
 	}
 	defer file.Close()
 
-	mapping, perr := parseMappingFile(file, s.param.FileMatching)
+	mapping, perr := parseMappingFile(file, s.param.proxy.FileMatching)
 
 	if perr != nil {
 		return perr

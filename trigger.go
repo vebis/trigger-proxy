@@ -8,10 +8,10 @@ import (
 )
 
 func (s *server) triggerJob(job string) bool {
-	url := createJobURL(s.param.JenkinsURL, job)
+	url := createJobURL(s.param.jenkins.URL, job)
 
-	if s.param.JenkinsUser == "" {
-		url = string(url + "?token=" + s.param.JenkinsToken)
+	if s.param.jenkins.User == "" {
+		url = string(url + "?token=" + s.param.jenkins.Token)
 	}
 
 	req, err := http.NewRequest("POST", url, nil)
@@ -20,8 +20,8 @@ func (s *server) triggerJob(job string) bool {
 	}
 
 	// if user and token is defined, use it for basic auth
-	if s.param.JenkinsUser != "" {
-		req.SetBasicAuth(s.param.JenkinsUser, s.param.JenkinsToken)
+	if s.param.jenkins.User != "" {
+		req.SetBasicAuth(s.param.jenkins.User, s.param.jenkins.Token)
 	}
 
 	tr := &http.Transport{

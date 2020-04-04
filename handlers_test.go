@@ -24,9 +24,11 @@ func Test_server_handlePlainGet(t *testing.T) {
 				mapping:    map[string][]string{"git://repo/magic/repo|branch|repo/file": {"job"}},
 				timeKeeper: make(map[string]*time.Timer),
 				param: parameters{
-					QuietPeriod:  5,
-					FileMatching: true,
-					SemanticRepo: "git://repo/magic/",
+					proxy: proxy{
+						QuietPeriod:  5,
+						FileMatching: true,
+						SemanticRepo: "git://repo/magic/",
+					},
 				},
 			},
 			args{w: httptest.NewRecorder(), r: httptest.NewRequest("GET", "/?repo=git://repo/magic/repo&branch=branch&file=file", nil)},
@@ -38,9 +40,11 @@ func Test_server_handlePlainGet(t *testing.T) {
 				mapping:    map[string][]string{"git://repo/magic/repo|branch|repo/file": {"job"}},
 				timeKeeper: make(map[string]*time.Timer),
 				param: parameters{
-					QuietPeriod:  5,
-					FileMatching: true,
-					SemanticRepo: "git://repo/magic/",
+					proxy: proxy{
+						QuietPeriod:  5,
+						FileMatching: true,
+						SemanticRepo: "git://repo/magic/",
+					},
 				},
 			},
 			args{w: httptest.NewRecorder(), r: httptest.NewRequest("GET", "/?repo=git://repo/magic/repa&branch=branch&file=file", nil)},
@@ -52,9 +56,11 @@ func Test_server_handlePlainGet(t *testing.T) {
 				mapping:    map[string][]string{"git://repo/magic/repo|branch|repo/file": {"job"}},
 				timeKeeper: make(map[string]*time.Timer),
 				param: parameters{
-					QuietPeriod:  5,
-					FileMatching: true,
-					SemanticRepo: "git://repo/magic/",
+					proxy: proxy{
+						QuietPeriod:  5,
+						FileMatching: true,
+						SemanticRepo: "git://repo/magic/",
+					},
 				},
 			},
 			args{w: httptest.NewRecorder(), r: httptest.NewRequest("GET", "/?branch=branch&file=file", nil)},

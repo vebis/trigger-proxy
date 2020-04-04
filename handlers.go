@@ -9,7 +9,7 @@ func (s *server) handlePlainGet() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		log.Print("handling new request")
 
-		repo, branch, files, err := parseGetRequest(r, s.param.FileMatching)
+		repo, branch, files, err := parseGetRequest(r, s.param.proxy.FileMatching)
 
 		if err != nil {
 			log.Print(err)

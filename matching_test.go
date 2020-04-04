@@ -130,9 +130,11 @@ func Test_server_processMatching(t *testing.T) {
 				mapping:    map[string][]string{"git://repo/repo|branch": {"job", "job2"}},
 				timeKeeper: make(map[string]*time.Timer),
 				param: parameters{
-					QuietPeriod:  5,
-					FileMatching: false,
-					SemanticRepo: "",
+					proxy: proxy{
+						QuietPeriod:  5,
+						FileMatching: false,
+						SemanticRepo: "",
+					},
 				},
 			},
 			args{repo: "git://repo/repo", branch: "branch", files: []string{}},
@@ -145,9 +147,11 @@ func Test_server_processMatching(t *testing.T) {
 				mapping:    map[string][]string{"git://repo/repo|branch": {"job"}},
 				timeKeeper: make(map[string]*time.Timer),
 				param: parameters{
-					QuietPeriod:  5,
-					FileMatching: false,
-					SemanticRepo: "",
+					proxy: proxy{
+						QuietPeriod:  5,
+						FileMatching: false,
+						SemanticRepo: "",
+					},
 				},
 			},
 			args{repo: "git://repo/repo", branch: "branch2", files: []string{}},
@@ -160,9 +164,11 @@ func Test_server_processMatching(t *testing.T) {
 				mapping:    map[string][]string{"git://repo/repo|branch|folder": {"job"}},
 				timeKeeper: make(map[string]*time.Timer),
 				param: parameters{
-					QuietPeriod:  5,
-					FileMatching: true,
-					SemanticRepo: "",
+					proxy: proxy{
+						QuietPeriod:  5,
+						FileMatching: true,
+						SemanticRepo: "",
+					},
 				},
 			},
 			args{repo: "git://repo/repo", branch: "branch", files: []string{"folder"}},
@@ -175,9 +181,11 @@ func Test_server_processMatching(t *testing.T) {
 				mapping:    map[string][]string{"git://repo/repo|branch|folder": {"job"}},
 				timeKeeper: make(map[string]*time.Timer),
 				param: parameters{
-					QuietPeriod:  5,
-					FileMatching: true,
-					SemanticRepo: "",
+					proxy: proxy{
+						QuietPeriod:  5,
+						FileMatching: true,
+						SemanticRepo: "",
+					},
 				},
 			},
 			args{repo: "git://repo/repo", branch: "branch", files: []string{"foldergreedy"}},
@@ -190,9 +198,11 @@ func Test_server_processMatching(t *testing.T) {
 				mapping:    map[string][]string{"git://repo/repo|branch|folder": {"job"}},
 				timeKeeper: make(map[string]*time.Timer),
 				param: parameters{
-					QuietPeriod:  5,
-					FileMatching: true,
-					SemanticRepo: "",
+					proxy: proxy{
+						QuietPeriod:  5,
+						FileMatching: true,
+						SemanticRepo: "",
+					},
 				},
 			},
 			args{repo: "git://repo/repo", branch: "branch", files: []string{"foldes"}},
@@ -208,9 +218,11 @@ func Test_server_processMatching(t *testing.T) {
 				},
 				timeKeeper: make(map[string]*time.Timer),
 				param: parameters{
-					QuietPeriod:  5,
-					FileMatching: true,
-					SemanticRepo: "git://repo/magic/",
+					proxy: proxy{
+						QuietPeriod:  5,
+						FileMatching: true,
+						SemanticRepo: "git://repo/magic/",
+					},
 				},
 			},
 			args{repo: "git://repo/magic/repo", branch: "branch", files: []string{"folder"}},
@@ -226,9 +238,11 @@ func Test_server_processMatching(t *testing.T) {
 				},
 				timeKeeper: make(map[string]*time.Timer),
 				param: parameters{
-					QuietPeriod:  5,
-					FileMatching: true,
-					SemanticRepo: "git://repo/magic/",
+					proxy: proxy{
+						QuietPeriod:  5,
+						FileMatching: true,
+						SemanticRepo: "git://repo/magic/",
+					},
 				},
 			},
 			args{repo: "git://repo/magic/repo", branch: "branch", files: []string{"folder/test"}},
@@ -244,9 +258,11 @@ func Test_server_processMatching(t *testing.T) {
 				},
 				timeKeeper: make(map[string]*time.Timer),
 				param: parameters{
-					QuietPeriod:  5,
-					FileMatching: true,
-					SemanticRepo: "git://repo/magic/",
+					proxy: proxy{
+						QuietPeriod:  5,
+						FileMatching: true,
+						SemanticRepo: "git://repo/magic/",
+					},
 				},
 			},
 			args{repo: "git://repo/repo", branch: "branch", files: []string{"folder"}},

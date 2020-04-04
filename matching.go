@@ -5,23 +5,27 @@ import (
 	"log"
 )
 
+func (s *server) getHits(hits []string, key string) []string {
+	if len(s.mapping[key]) > 0 {
+		for _, hit := range s.mapping[key] {
+			hits = append(hits, hit)
+		}
+	}
+
+	return hits
+}
+
 func (s *server) matchMappingKeys(keys []string, filematch bool) ([]string, error) {
 	var hits []string
 	for _, key := range keys {
 		log.Print("Searching mappings for key: ", key)
 
 		if len(s.mapping[key]) > 0 {
-			for _, hit := range s.mapping[key] {
-				hits = append(hits, hit)
-			}
+			hits = s.getHits(hits, key)
 		} else if filematch {
 			for len(key) > 1 {
 				key = removeLastRune(key)
-				if len(s.mapping[key]) > 0 {
-					for _, hit := range s.mapping[key] {
-						hits = append(hits, hit)
-					}
-				}
+				hits = s.getHits(hits, key)
 			}
 		}
 	}
@@ -36,9 +40,9 @@ func (s *server) matchMappingKeys(keys []string, filematch bool) ([]string, erro
 }
 
 func (s *server) processMatching(repo, branch string, files []string) error {
-	keys := evalMappingKeys(repo, branch, files, s.param.FileMatching, s.param.SemanticRepo)
+	keys := evalMappingKeys(repo, branch, files, s.param.proxy.FileMatching, s.param.proxy.SemanticRepo)
 
-	jobs, err := s.matchMappingKeys(keys, s.param.FileMatching)
+	jobs, err := s.matchMappingKeys(keys, s.param.proxy.FileMatching)
 	if err != nil {
 		return err
 	}

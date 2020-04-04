@@ -12,9 +12,9 @@ func (s *server) createTimer(job string) {
 		delete(s.timeKeeper, job)
 	}
 
-	log.Printf("Creating timer for job '%s' with quiet period of %d seconds", job, s.param.QuietPeriod)
+	log.Printf("Creating timer for job '%s' with quiet period of %d seconds", job, s.param.proxy.QuietPeriod)
 
-	timer := time.AfterFunc(time.Second*time.Duration(s.param.QuietPeriod), func() {
+	timer := time.AfterFunc(time.Second*time.Duration(s.param.proxy.QuietPeriod), func() {
 		log.Print("Quiet period exceeded for job ", job)
 		s.triggerJob(job)
 		if _, ok := s.timeKeeper[job]; ok {

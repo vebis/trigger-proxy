@@ -22,10 +22,18 @@ type server struct {
 }
 
 type parameters struct {
-	JenkinsURL   string
-	JenkinsUser  string
-	JenkinsToken string
-	JenkinsMulti string
+	jenkins jenkins
+	proxy   proxy
+}
+
+type jenkins struct {
+	URL   string
+	User  string
+	Token string
+	Multi string
+}
+
+type proxy struct {
 	MappingFile  string
 	QuietPeriod  int
 	FileMatching bool
@@ -40,14 +48,14 @@ func main() {
 }
 
 func (s *server) parseFlags(args []string) {
-	flag.StringVar(&s.param.JenkinsURL, "jenkins-url", "", "sets the jenkins url")
-	flag.StringVar(&s.param.JenkinsUser, "jenkins-user", "", "jenkins username")
-	flag.StringVar(&s.param.JenkinsToken, "jenkins-token", "", "token for user or root token to trigger anonymously")
-	flag.StringVar(&s.param.JenkinsMulti, "jenkins-multi", "", "root folder or job name")
-	flag.StringVar(&s.param.MappingFile, "mappingfile", "mapping.csv", "path to the mapping file")
-	flag.IntVar(&s.param.QuietPeriod, "quietperiod", defQp, "defines the time trigger-proxy will wait until the job is triggered")
-	flag.BoolVar(&s.param.FileMatching, "filematch", false, "try to match for file names")
-	flag.StringVar(&s.param.SemanticRepo, "semanticrepo", "", "repo prefix to handle as component repository")
+	flag.StringVar(&s.param.jenkins.URL, "jenkins-url", "", "sets the jenkins url")
+	flag.StringVar(&s.param.jenkins.User, "jenkins-user", "", "jenkins username")
+	flag.StringVar(&s.param.jenkins.Token, "jenkins-token", "", "token for user or root token to trigger anonymously")
+	flag.StringVar(&s.param.jenkins.Multi, "jenkins-multi", "", "root folder or job name")
+	flag.StringVar(&s.param.proxy.MappingFile, "mappingfile", "mapping.csv", "path to the mapping file")
+	flag.IntVar(&s.param.proxy.QuietPeriod, "quietperiod", defQp, "defines the time trigger-proxy will wait until the job is triggered")
+	flag.BoolVar(&s.param.proxy.FileMatching, "filematch", false, "try to match for file names")
+	flag.StringVar(&s.param.proxy.SemanticRepo, "semanticrepo", "", "repo prefix to handle as component repository")
 
 	flag.Parse()
 }
@@ -64,28 +72,28 @@ func run(args []string, stdout io.Writer) error {
 
 	log.Println("Checking environment variables")
 
-	if s.param.JenkinsURL == "" {
+	if s.param.jenkins.URL == "" {
 		return errors.New("No JENKINS_URL defined")
 	}
 
-	if s.param.JenkinsUser == "" {
+	if s.param.jenkins.User == "" {
 		log.Println("No JENKINS_USER defined")
 	}
 
-	if s.param.JenkinsToken == "" {
+	if s.param.jenkins.Token == "" {
 		return errors.New("No JENKINS_TOKEN defined")
 	}
 
-	if s.param.JenkinsMulti != "" {
-		log.Printf("Found multibranch project: %s\n", s.param.JenkinsMulti)
+	if s.param.jenkins.Multi != "" {
+		log.Printf("Found multibranch project: %s\n", s.param.jenkins.Multi)
 
-		s.param.JenkinsURL = s.param.JenkinsURL + "/job/" + s.param.JenkinsMulti
+		s.param.jenkins.URL = s.param.jenkins.URL + "/job/" + s.param.jenkins.Multi
 	}
 
-	log.Printf("Found configured quiet period: %d\n", s.param.QuietPeriod)
-	log.Printf("Project URL: %s\n", s.param.JenkinsURL)
+	log.Printf("Found configured quiet period: %d\n", s.param.proxy.QuietPeriod)
+	log.Printf("Project URL: %s\n", s.param.jenkins.URL)
 
-	log.Printf("Found configured mapping file: %s\n", s.param.MappingFile)
+	log.Printf("Found configured mapping file: %s\n", s.param.proxy.MappingFile)
 
 	if err := s.processMappingFile(); err != nil {
 		return err
