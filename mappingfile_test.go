@@ -63,3 +63,54 @@ func Test_parseMappingFile(t *testing.T) {
 		})
 	}
 }
+
+func Test_server_processMappingFile(t *testing.T) {
+	tests := []struct {
+		name    string
+		s       server
+		want    int
+		wantErr bool
+	}{
+		{
+			"example_parser_nofilematch",
+			server{
+				param: parameters{
+					proxy: proxy{
+						MappingFile: "./assets/run/example.csv",
+					},
+				},
+			},
+			8,
+			false,
+		},
+		{
+			"example_parser_filematch",
+			server{
+				param: parameters{
+					proxy: proxy{
+						MappingFile:  "./assets/run/example_fm.csv",
+						FileMatching: true,
+					},
+				},
+			},
+			2,
+			false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := tt.s.processMappingFile(); (err != nil) != tt.wantErr {
+				t.Errorf("server.processMappingFile() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			got := 0
+			for k := range tt.s.mapping {
+				for range tt.s.mapping[k] {
+					got = got + 1
+				}
+			}
+			if got != tt.want {
+				t.Errorf("server.processMappingFile() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
