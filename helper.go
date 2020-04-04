@@ -22,24 +22,25 @@ func removeLastRune(s string) string {
 	return string(r[:len(r)-1])
 }
 
+func appendMappingKeys(keys, files []string, repo, branch, fileprefix string) []string {
+	for _, file := range files {
+		keys = append(keys, buildMappingKey([]string{repo, branch, fileprefix + file}))
+	}
+	return keys
+}
+
 func evalMappingKeys(repo, branch string, files []string, filematch bool, sematicrepo string) []string {
 	var keys []string
 	if filematch {
 		if sematicrepo != "" {
 			pkgname, err := getSemanticRepoName(repo, sematicrepo)
 			if err == nil && pkgname != "" {
-				for _, file := range files {
-					keys = append(keys, buildMappingKey([]string{repo, branch, pkgname + "/" + file}))
-				}
+				keys = appendMappingKeys(keys, files, repo, branch, pkgname+"/")
 			} else {
-				for _, file := range files {
-					keys = append(keys, buildMappingKey([]string{repo, branch, file}))
-				}
+				keys = appendMappingKeys(keys, files, repo, branch, "")
 			}
 		} else {
-			for _, file := range files {
-				keys = append(keys, buildMappingKey([]string{repo, branch, file}))
-			}
+			keys = appendMappingKeys(keys, files, repo, branch, "")
 		}
 	} else {
 		key := buildMappingKey([]string{repo, branch})
