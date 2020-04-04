@@ -1,4 +1,4 @@
-package proxy
+package main
 
 import (
 	"errors"
@@ -7,12 +7,14 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 	"time"
 )
 
 const (
 	exitFail = 1
 	defQp    = 10
+	defPort  = 8080
 )
 
 type server struct {
@@ -38,6 +40,7 @@ type proxy struct {
 	QuietPeriod  int
 	FileMatching bool
 	SemanticRepo string
+	port         int
 }
 
 func main() {
@@ -56,6 +59,7 @@ func (s *server) parseFlags(args []string) {
 	flag.IntVar(&s.param.proxy.QuietPeriod, "quietperiod", defQp, "defines the time trigger-proxy will wait until the job is triggered")
 	flag.BoolVar(&s.param.proxy.FileMatching, "filematch", false, "try to match for file names")
 	flag.StringVar(&s.param.proxy.SemanticRepo, "semanticrepo", "", "repo prefix to handle as component repository")
+	flag.IntVar(&s.param.proxy.port, "port", defPort, "defines the http port to listen on")
 
 	flag.Parse()
 }
@@ -95,14 +99,19 @@ func run(args []string, stdout io.Writer) error {
 
 	log.Printf("Found configured mapping file: %s\n", s.param.proxy.MappingFile)
 
+	if s.param.proxy.SemanticRepo != "" {
+		s.param.proxy.FileMatching = true
+	}
+
 	if err := s.processMappingFile(); err != nil {
 		return err
 	}
 
 	http.HandleFunc("/", s.handlePlainGet())
 
-	log.Println("Serving on port 8080")
-	http.ListenAndServe(":8080", nil)
+	port := strconv.Itoa(s.param.proxy.port)
+	log.Println("Serving on port " + port)
+	http.ListenAndServe(":"+port, nil)
 
 	return nil
 }
