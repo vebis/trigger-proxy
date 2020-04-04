@@ -76,7 +76,7 @@ func Test_server_processMappingFile(t *testing.T) {
 			server{
 				param: parameters{
 					proxy: proxy{
-						MappingFile: "./assets/run/example.csv",
+						MappingFile: "./examples/example.csv",
 					},
 				},
 			},
@@ -88,7 +88,7 @@ func Test_server_processMappingFile(t *testing.T) {
 			server{
 				param: parameters{
 					proxy: proxy{
-						MappingFile:  "./assets/run/example_fm.csv",
+						MappingFile:  "./examples/example_fm.csv",
 						FileMatching: true,
 					},
 				},
