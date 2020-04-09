@@ -108,6 +108,7 @@ func run(args []string, stdout io.Writer) error {
 	}
 
 	http.HandleFunc("/", s.handlePlainGet())
+	http.HandleFunc("/json", s.handleJSONPost())
 
 	port := strconv.Itoa(s.param.proxy.port)
 	log.Println("Serving on port " + port)

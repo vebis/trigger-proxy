@@ -30,8 +30,9 @@ sudo docker run vebis/trigger-proxy \
     -jenkins-token="token"
 ```
 
-Send an http request with GET parameter "repo" to port 8080. If you defined the GET parameter "branch" it will be considered, otherwise "master" ist assumed.
-If you send one or more GET paramters "file" and you have filematching enabled, it tries to match the files provided against your mapping.
+Send an http GET request with parameter "repo" to port 8080. If you defined the parameter "branch" it will be considered, otherwise "master" ist assumed.
+If you send one or more paramters "file" and you have filematching enabled, it tries to match the files provided against your mapping.
+Otherwise, if you send a [GitLab Webhook](https://docs.gitlab.com/ee/user/project/integrations/webhooks.html) to the endpoint "/json", the information will be parsed and matched against your mapping.
 The app will lookup any job names for your input and will trigger them.
 
 ### Use Case - monorepo

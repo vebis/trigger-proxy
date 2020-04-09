@@ -142,6 +142,57 @@ func Test_server_processMatching(t *testing.T) {
 			false,
 		},
 		{
+			"simple_https_match",
+			server{
+				mapping:    map[string][]string{"https://repo/repo|branch": {"job", "job2"}},
+				timeKeeper: make(map[string]*time.Timer),
+				param: parameters{
+					proxy: proxy{
+						QuietPeriod:  5,
+						FileMatching: false,
+						SemanticRepo: "",
+					},
+				},
+			},
+			args{repo: "https://repo/repo", branch: "branch", files: []string{}},
+			[]string{"job", "job2"},
+			false,
+		},
+		{
+			"simple_ssh_match",
+			server{
+				mapping:    map[string][]string{"git@repo:repo|branch": {"job", "job2"}},
+				timeKeeper: make(map[string]*time.Timer),
+				param: parameters{
+					proxy: proxy{
+						QuietPeriod:  5,
+						FileMatching: false,
+						SemanticRepo: "",
+					},
+				},
+			},
+			args{repo: "git@repo:repo", branch: "branch", files: []string{}},
+			[]string{"job", "job2"},
+			false,
+		},
+		{
+			"semantic_ssh_match",
+			server{
+				mapping:    map[string][]string{"git@repo:magic/repo|branch|repo/file": {"job", "job2"}},
+				timeKeeper: make(map[string]*time.Timer),
+				param: parameters{
+					proxy: proxy{
+						QuietPeriod:  5,
+						FileMatching: true,
+						SemanticRepo: "git@repo:magic/",
+					},
+				},
+			},
+			args{repo: "git@repo:magic/repo", branch: "branch", files: []string{"file"}},
+			[]string{"job", "job2"},
+			false,
+		},
+		{
 			"simple_nomatch",
 			server{
 				mapping:    map[string][]string{"git://repo/repo|branch": {"job"}},
