@@ -3,7 +3,6 @@ package main
 import (
 	"errors"
 	"flag"
-	"io"
 	"log"
 	"net/http"
 	"os"
@@ -47,12 +46,55 @@ type proxy struct {
 }
 
 func main() {
-	if err := run(os.Args, os.Stdout); err != nil {
+	if err := run(os.Args); err != nil {
 		log.Fatalf("%s\n", err)
 		os.Exit(exitFail)
 	}
 }
 
+// newServer returns a new trigger proxy server
+func newServer(args []string) (server, error) {
+	s := server{
+		mapping:     make(map[string][]string),
+		mappingHash: "",
+		timeKeeper:  make(map[string]*time.Timer),
+	}
+
+	s.parseFlags(args)
+
+	log.Println("checking configuration")
+
+	if s.param.jenkins.URL == "" {
+		return s, errors.New("no jenkins url defined")
+	}
+
+	if s.param.jenkins.Token == "" {
+		return s, errors.New("no jenkins token defined")
+	}
+
+	log.Printf("project url: %s\n", s.param.jenkins.URL)
+
+	if s.param.jenkins.User == "" {
+		log.Println("no jenkins user defined")
+	} else {
+		log.Printf("jenkins user: %s\n", s.param.jenkins.User)
+	}
+
+	if s.param.jenkins.Multi != "" {
+		log.Printf("found multibranch project: %s\n", s.param.jenkins.Multi)
+
+		s.param.jenkins.URL = s.param.jenkins.URL + "/job/" + s.param.jenkins.Multi
+	}
+
+	log.Printf("quiet period: %d\n", s.param.proxy.QuietPeriod)
+	log.Printf("mapping file: %s\n", s.param.proxy.MappingFile)
+
+	if s.param.proxy.SemanticRepo != "" {
+		s.param.proxy.FileMatching = true
+	}
+
+	return s, nil
+}
 func (s *server) parseFlags(args []string) {
 	flag.StringVar(&s.param.jenkins.URL, "jenkins-url", "", "sets the jenkins url")
 	flag.StringVar(&s.param.jenkins.User, "jenkins-user", "", "jenkins username")
@@ -70,44 +112,12 @@ func (s *server) parseFlags(args []string) {
 	flag.Parse()
 }
 
-func run(args []string, stdout io.Writer) error {
+func run(args []string) error {
 	log.Println("Starting trigger-proxy ...")
 
-	s := server{
-		mapping:     make(map[string][]string),
-		mappingHash: "",
-		timeKeeper:  make(map[string]*time.Timer),
-	}
-
-	s.parseFlags(args)
-
-	log.Println("Checking environment variables")
-
-	if s.param.jenkins.URL == "" {
-		return errors.New("No JENKINS_URL defined")
-	}
-
-	if s.param.jenkins.User == "" {
-		log.Println("No JENKINS_USER defined")
-	}
-
-	if s.param.jenkins.Token == "" {
-		return errors.New("No JENKINS_TOKEN defined")
-	}
-
-	if s.param.jenkins.Multi != "" {
-		log.Printf("Found multibranch project: %s\n", s.param.jenkins.Multi)
-
-		s.param.jenkins.URL = s.param.jenkins.URL + "/job/" + s.param.jenkins.Multi
-	}
-
-	log.Printf("Found configured quiet period: %d\n", s.param.proxy.QuietPeriod)
-	log.Printf("Project URL: %s\n", s.param.jenkins.URL)
-
-	log.Printf("Found configured mapping file: %s\n", s.param.proxy.MappingFile)
-
-	if s.param.proxy.SemanticRepo != "" {
-		s.param.proxy.FileMatching = true
+	s, err := newServer(args)
+	if err != nil {
+		return err
 	}
 
 	if err := s.refreshMapping(); err != nil {
