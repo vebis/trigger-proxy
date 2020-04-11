@@ -15,12 +15,15 @@ const (
 	exitFail = 1
 	defQp    = 10
 	defPort  = 8080
+	defInt   = 5
 )
 
 type server struct {
-	mapping    map[string][]string
-	timeKeeper map[string]*time.Timer
-	param      parameters
+	mapping                map[string][]string
+	mappingHash            string
+	mappingRefreshInterval time.Duration
+	timeKeeper             map[string]*time.Timer
+	param                  parameters
 }
 
 type parameters struct {
@@ -61,6 +64,9 @@ func (s *server) parseFlags(args []string) {
 	flag.StringVar(&s.param.proxy.SemanticRepo, "semanticrepo", "", "repo prefix to handle as component repository")
 	flag.IntVar(&s.param.proxy.port, "port", defPort, "defines the http port to listen on")
 
+	refreshInterval := flag.Int("mappingrefresh", defInt, "refresh interval in minutes to check for modified mapping file")
+	s.mappingRefreshInterval = time.Duration(*refreshInterval) * time.Minute
+
 	flag.Parse()
 }
 
@@ -68,8 +74,9 @@ func run(args []string, stdout io.Writer) error {
 	log.Println("Starting trigger-proxy ...")
 
 	s := server{
-		mapping:    make(map[string][]string),
-		timeKeeper: make(map[string]*time.Timer),
+		mapping:     make(map[string][]string),
+		mappingHash: "",
+		timeKeeper:  make(map[string]*time.Timer),
 	}
 
 	s.parseFlags(args)
@@ -103,9 +110,11 @@ func run(args []string, stdout io.Writer) error {
 		s.param.proxy.FileMatching = true
 	}
 
-	if err := s.processMappingFile(); err != nil {
+	if err := s.refreshMapping(); err != nil {
 		return err
 	}
+
+	s.createRefreshJob()
 
 	http.HandleFunc("/", s.handlePlainGet())
 	http.HandleFunc("/json", s.handleJSONPost())

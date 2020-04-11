@@ -30,3 +30,22 @@ func (s *server) createTimer(job string) {
 
 	return
 }
+
+func (s *server) createRefreshJob() {
+	ticker := time.NewTicker(s.mappingRefreshInterval)
+	quit := make(chan struct{})
+	go func() {
+		for {
+			select {
+			case <-ticker.C:
+				err := s.refreshMapping()
+				if err != nil {
+					log.Print(err)
+				}
+			case <-quit:
+				ticker.Stop()
+				return
+			}
+		}
+	}()
+}

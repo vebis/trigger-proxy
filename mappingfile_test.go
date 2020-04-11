@@ -114,3 +114,100 @@ func Test_server_processMappingFile(t *testing.T) {
 		})
 	}
 }
+
+func Test_server_refreshMapping(t *testing.T) {
+	tests := []struct {
+		name    string
+		s       server
+		want    int
+		wantErr bool
+	}{
+		{
+			"example_parser_nofilematch",
+			server{
+				param: parameters{
+					proxy: proxy{
+						MappingFile: "./examples/example.csv",
+					},
+				},
+			},
+			8,
+			false,
+		},
+		{
+			"example_parser_filematch",
+			server{
+				param: parameters{
+					proxy: proxy{
+						MappingFile:  "./examples/example_fm.csv",
+						FileMatching: true,
+					},
+				},
+			},
+			2,
+			false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := tt.s.refreshMapping(); (err != nil) != tt.wantErr {
+				t.Errorf("server.refreshMapping() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			got := 0
+			for k := range tt.s.mapping {
+				for range tt.s.mapping[k] {
+					got = got + 1
+				}
+			}
+			if got != tt.want {
+				t.Errorf("server.refreshMapping() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_server_advanced_refreshMapping(t *testing.T) {
+	tests := []struct {
+		name    string
+		s       server
+		newMap  string
+		want    int
+		wantErr bool
+	}{
+		{
+			"refresh_mapping",
+			server{
+				param: parameters{
+					proxy: proxy{
+						MappingFile: "./examples/example.csv",
+					},
+				},
+			},
+			"./examples/example_refresh.csv",
+			7,
+			false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := tt.s.refreshMapping(); (err != nil) != tt.wantErr {
+				t.Errorf("server.refreshMapping() error = %v, wantErr %v", err, tt.wantErr)
+			}
+
+			tt.s.param.proxy.MappingFile = tt.newMap
+
+			if err := tt.s.refreshMapping(); (err != nil) != tt.wantErr {
+				t.Errorf("server.refreshMapping() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			got := 0
+			for k := range tt.s.mapping {
+				for range tt.s.mapping[k] {
+					got = got + 1
+				}
+			}
+			if got != tt.want {
+				t.Errorf("server.refreshMapping() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
