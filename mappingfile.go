@@ -1,28 +1,47 @@
 package main
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/csv"
 	"encoding/hex"
 	"errors"
 	"io"
+	"io/ioutil"
 	"log"
+	"net/http"
 	"os"
 )
 
 func (s *server) refreshMapping() error {
-	newHash, err := s.hashMappingFile()
-	if err != nil {
-		return err
+	var newHash string
+	if s.isMappingURL() {
+		nash, err := s.hashMappingURL()
+		if err != nil {
+			return err
+		}
+		newHash = nash
+	} else {
+		nash, err := s.hashMappingFile()
+		if err != nil {
+			return err
+		}
+		newHash = nash
 	}
 
 	if s.mappingHash != "" {
-		log.Printf("hash of mapping file has changed (old: %s, new %s)", s.mappingHash, newHash)
+		log.Printf("hash of mapping has changed (old: %s, new %s)", s.mappingHash, newHash)
 	}
 
 	if newHash != s.mappingHash {
-		if err := s.processMappingFile(); err != nil {
-			return err
+		if s.isMappingURL() {
+			if err := s.processMappingURL(); err != nil {
+				return err
+			}
+		} else {
+			if err := s.processMappingFile(); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -31,9 +50,9 @@ func (s *server) refreshMapping() error {
 
 // processMappingFile processes the file at given path
 func (s *server) processMappingFile() error {
-	log.Printf("Reading mapping from file: %s\n", s.param.proxy.MappingFile)
+	log.Printf("reading mapping from file: %s\n", s.param.proxy.Mapping.file)
 
-	file, err := os.Open(s.param.proxy.MappingFile)
+	file, err := os.Open(s.param.proxy.Mapping.file)
 	if err != nil {
 		return err
 	}
@@ -46,6 +65,36 @@ func (s *server) processMappingFile() error {
 	newHash, herr := s.hashMappingFile()
 	if herr != nil {
 		return herr
+	}
+	s.mapping = mapping
+	s.mappingHash = newHash
+
+	return nil
+}
+
+func (s *server) processMappingURL() error {
+	log.Printf("reading mapping from url: %s\n", s.param.proxy.Mapping.url)
+
+	resp, err := http.Get(s.param.proxy.Mapping.url)
+	if err != nil {
+		return err
+	}
+	if resp.StatusCode != 200 {
+		return errors.New("getting mapping from url")
+	}
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+
+	mapping, err := parseMappingFile(bytes.NewReader(body), s.param.proxy.FileMatching)
+	if err != nil {
+		return err
+	}
+	newHash, err := s.hashMappingURL()
+	if err != nil {
+		return err
 	}
 	s.mapping = mapping
 	s.mappingHash = newHash
@@ -89,7 +138,7 @@ func parseMappingFile(file io.Reader, filematch bool) (map[string][]string, erro
 
 func (s *server) hashMappingFile() (string, error) {
 	var mhash string
-	file, err := os.Open(s.param.proxy.MappingFile)
+	file, err := os.Open(s.param.proxy.Mapping.file)
 	if err != nil {
 		return mhash, err
 	}
@@ -103,4 +152,30 @@ func (s *server) hashMappingFile() (string, error) {
 	mhash = hex.EncodeToString(h.Sum(nil))
 
 	return mhash, nil
+}
+
+func (s *server) hashMappingURL() (string, error) {
+	var mhash string
+	resp, err := http.Get(s.param.proxy.Mapping.url + ".sha256")
+	if err != nil {
+		return mhash, err
+	}
+	defer resp.Body.Close()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return mhash, err
+	}
+
+	mhash = string(body)
+
+	return mhash, err
+}
+
+func (s *server) isMappingURL() bool {
+	if len(s.param.proxy.Mapping.url) > 0 {
+		return true
+	}
+
+	return false
 }

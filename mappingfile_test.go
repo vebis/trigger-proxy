@@ -76,7 +76,9 @@ func Test_server_processMappingFile(t *testing.T) {
 			server{
 				param: parameters{
 					proxy: proxy{
-						MappingFile: "./examples/example.csv",
+						Mapping: mapping{
+							file: "./examples/example.csv",
+						},
 					},
 				},
 			},
@@ -88,7 +90,9 @@ func Test_server_processMappingFile(t *testing.T) {
 			server{
 				param: parameters{
 					proxy: proxy{
-						MappingFile:  "./examples/example_fm.csv",
+						Mapping: mapping{
+							file: "./examples/example_fm.csv",
+						},
 						FileMatching: true,
 					},
 				},
@@ -127,7 +131,9 @@ func Test_server_refreshMapping(t *testing.T) {
 			server{
 				param: parameters{
 					proxy: proxy{
-						MappingFile: "./examples/example.csv",
+						Mapping: mapping{
+							file: "./examples/example.csv",
+						},
 					},
 				},
 			},
@@ -139,7 +145,9 @@ func Test_server_refreshMapping(t *testing.T) {
 			server{
 				param: parameters{
 					proxy: proxy{
-						MappingFile:  "./examples/example_fm.csv",
+						Mapping: mapping{
+							file: "./examples/example_fm.csv",
+						},
 						FileMatching: true,
 					},
 				},
@@ -179,7 +187,9 @@ func Test_server_advanced_refreshMapping(t *testing.T) {
 			server{
 				param: parameters{
 					proxy: proxy{
-						MappingFile: "./examples/example.csv",
+						Mapping: mapping{
+							file: "./examples/example.csv",
+						},
 					},
 				},
 			},
@@ -194,7 +204,7 @@ func Test_server_advanced_refreshMapping(t *testing.T) {
 				t.Errorf("server.refreshMapping() error = %v, wantErr %v", err, tt.wantErr)
 			}
 
-			tt.s.param.proxy.MappingFile = tt.newMap
+			tt.s.param.proxy.Mapping.file = tt.newMap
 
 			if err := tt.s.refreshMapping(); (err != nil) != tt.wantErr {
 				t.Errorf("server.refreshMapping() error = %v, wantErr %v", err, tt.wantErr)

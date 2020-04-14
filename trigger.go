@@ -39,7 +39,7 @@ func (s *server) triggerJob(job string) bool {
 	}
 
 	if !(200 <= resp.StatusCode && resp.StatusCode <= 299) {
-		log.Printf("... %v failed with status code %v\n", job, resp.StatusCode)
+		log.Printf("... %v trigger failed with status code %v\n", job, resp.StatusCode)
 	} else {
 		log.Printf("... %v triggered\n", job)
 	}

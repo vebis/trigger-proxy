@@ -16,7 +16,8 @@ Set the following command line parameters
 * jenkins-user - user who can trigger builds
 * jenkins-token - the api token of the user
 * quietperiod - quiet period for jobs, defaults to 30 (seconds)
-* mappingfile - path to mapping file, defaults to mapping.csv
+* mapping-file - path to mapping file, defaults to mapping.csv
+* mapping-url - path to mapping file on an http server (sha256 hash of mapping file at same url with .sha256 suffix)
 * mappingrefresh - intervall to check for changed mappings, defaults to 5 (minutes)
 * filematch - parses a 4th column of the mapping file and tries to match files received in the request
 * semanticrepo - semantic repos, a corner case, you know if you need this (component/package setups). If this parameter is defined, filematch is set to true!

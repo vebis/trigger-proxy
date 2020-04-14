@@ -37,8 +37,14 @@ type jenkins struct {
 	Multi string
 }
 
+type mapping struct {
+	file string
+	hash string
+	url  string
+}
+
 type proxy struct {
-	MappingFile  string
+	Mapping      mapping
 	QuietPeriod  int
 	FileMatching bool
 	SemanticRepo string
@@ -60,7 +66,9 @@ func newServer(args []string) (server, error) {
 		timeKeeper:  make(map[string]*time.Timer),
 	}
 
-	s.parseFlags(args)
+	if err := s.parseFlags(args); err != nil {
+		return s, err
+	}
 
 	log.Println("checking configuration")
 
@@ -87,7 +95,18 @@ func newServer(args []string) (server, error) {
 	}
 
 	log.Printf("quiet period: %d\n", s.param.proxy.QuietPeriod)
-	log.Printf("mapping file: %s\n", s.param.proxy.MappingFile)
+
+	if len(s.param.proxy.Mapping.file) > 0 {
+		log.Printf("mapping file: %s\n", s.param.proxy.Mapping.file)
+	}
+	if len(s.param.proxy.Mapping.url) > 0 {
+		log.Printf("mapping url: %s\n", s.param.proxy.Mapping.url)
+	}
+	if len(s.param.proxy.Mapping.url) > 0 && len(s.param.proxy.Mapping.file) > 0 {
+		log.Println("ignoring mapping file")
+		s.param.proxy.Mapping.file = ""
+	}
+	log.Println("---------------------------------")
 
 	if s.param.proxy.SemanticRepo != "" {
 		s.param.proxy.FileMatching = true
@@ -95,21 +114,28 @@ func newServer(args []string) (server, error) {
 
 	return s, nil
 }
-func (s *server) parseFlags(args []string) {
-	flag.StringVar(&s.param.jenkins.URL, "jenkins-url", "", "sets the jenkins url")
-	flag.StringVar(&s.param.jenkins.User, "jenkins-user", "", "jenkins username")
-	flag.StringVar(&s.param.jenkins.Token, "jenkins-token", "", "token for user or root token to trigger anonymously")
-	flag.StringVar(&s.param.jenkins.Multi, "jenkins-multi", "", "root folder or job name")
-	flag.StringVar(&s.param.proxy.MappingFile, "mappingfile", "mapping.csv", "path to the mapping file")
-	flag.IntVar(&s.param.proxy.QuietPeriod, "quietperiod", defQp, "defines the time trigger-proxy will wait until the job is triggered")
-	flag.BoolVar(&s.param.proxy.FileMatching, "filematch", false, "try to match for file names")
-	flag.StringVar(&s.param.proxy.SemanticRepo, "semanticrepo", "", "repo prefix to handle as component repository")
-	flag.IntVar(&s.param.proxy.port, "port", defPort, "defines the http port to listen on")
+func (s *server) parseFlags(args []string) error {
+	flags := flag.NewFlagSet(args[0], flag.ExitOnError)
 
-	refreshInterval := flag.Int("mappingrefresh", defInt, "refresh interval in minutes to check for modified mapping file")
+	flags.StringVar(&s.param.jenkins.URL, "jenkins-url", "", "sets the jenkins url")
+	flags.StringVar(&s.param.jenkins.User, "jenkins-user", "", "jenkins username")
+	flags.StringVar(&s.param.jenkins.Token, "jenkins-token", "", "token for user or root token to trigger anonymously")
+	flags.StringVar(&s.param.jenkins.Multi, "jenkins-multi", "", "root folder or job name")
+	flags.StringVar(&s.param.proxy.Mapping.file, "mapping-file", "mapping.csv", "path to the mapping file")
+	flags.StringVar(&s.param.proxy.Mapping.url, "mapping-url", "", "path to the mapping file")
+	flags.IntVar(&s.param.proxy.QuietPeriod, "quietperiod", defQp, "defines the time trigger-proxy will wait until the job is triggered")
+	flags.BoolVar(&s.param.proxy.FileMatching, "filematch", false, "try to match for file names")
+	flags.StringVar(&s.param.proxy.SemanticRepo, "semanticrepo", "", "repo prefix to handle as component repository")
+	flags.IntVar(&s.param.proxy.port, "port", defPort, "defines the http port to listen on")
+
+	refreshInterval := flags.Int("mappingrefresh", defInt, "refresh interval in minutes to check for modified mapping file")
 	s.mappingRefreshInterval = time.Duration(*refreshInterval) * time.Minute
 
-	flag.Parse()
+	if err := flags.Parse(args[1:]); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func run(args []string) error {
