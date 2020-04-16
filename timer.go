@@ -7,25 +7,25 @@ import (
 
 func (s *server) createTimer(job string) {
 	if _, ok := s.timeKeeper[job]; ok {
-		log.Print("Reseting timer for job ", job)
+		log.Print("reseting timer for job ", job)
 		s.timeKeeper[job].Stop()
 		delete(s.timeKeeper, job)
 	}
 
-	log.Printf("Creating timer for job '%s' with quiet period of %d seconds", job, s.param.proxy.QuietPeriod)
+	log.Printf("creating timer for job '%s' with quiet period of %d seconds", job, s.param.proxy.QuietPeriod)
 
 	timer := time.AfterFunc(time.Second*time.Duration(s.param.proxy.QuietPeriod), func() {
-		log.Print("Quiet period exceeded for job ", job)
+		log.Print("quiet period exceeded for job ", job)
 		s.triggerJob(job)
 		if _, ok := s.timeKeeper[job]; ok {
-			log.Print("Deleting timer for job ", job)
+			log.Print("deleting timer for job ", job)
 			delete(s.timeKeeper, job)
 		}
 	})
 
 	s.timeKeeper[job] = timer
 	if _, ok := s.timeKeeper[job]; ok {
-		log.Print("Timer saved in time keeper")
+		log.Print("timer saved in time keeper")
 	}
 
 	return

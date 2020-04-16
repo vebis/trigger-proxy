@@ -2,7 +2,10 @@ package main
 
 import (
 	"log"
+	"net"
 	"net/http"
+	"strconv"
+	"time"
 )
 
 func (s *server) handlePlainGet() http.HandlerFunc {
@@ -57,5 +60,21 @@ func (s *server) handleJSONPost() http.HandlerFunc {
 		w.WriteHeader(http.StatusOK)
 
 		log.Print("handling of request finished")
+	}
+}
+
+func (s *server) handleReadiness() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if len(s.mappingHash) == 0 {
+			w.WriteHeader(http.StatusInternalServerError)
+		}
+
+		conn, _ := net.DialTimeout("tcp", net.JoinHostPort("", strconv.Itoa(s.param.proxy.port)), time.Millisecond*time.Duration(100))
+		if conn == nil {
+			w.WriteHeader(http.StatusInternalServerError)
+		}
+		conn.Close()
+
+		w.WriteHeader(http.StatusOK)
 	}
 }

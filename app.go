@@ -114,6 +114,7 @@ func newServer(args []string) (server, error) {
 
 	return s, nil
 }
+
 func (s *server) parseFlags(args []string) error {
 	flags := flag.NewFlagSet(args[0], flag.ExitOnError)
 
@@ -139,7 +140,7 @@ func (s *server) parseFlags(args []string) error {
 }
 
 func run(args []string) error {
-	log.Println("Starting trigger-proxy ...")
+	log.Println("starting trigger-proxy ...")
 
 	s, err := newServer(args)
 	if err != nil {
@@ -154,9 +155,10 @@ func run(args []string) error {
 
 	http.HandleFunc("/", s.handlePlainGet())
 	http.HandleFunc("/json", s.handleJSONPost())
+	http.HandleFunc("/readyz", s.handleReadiness())
 
 	port := strconv.Itoa(s.param.proxy.port)
-	log.Println("Serving on port " + port)
+	log.Println("serving on port " + port)
 	http.ListenAndServe(":"+port, nil)
 
 	return nil

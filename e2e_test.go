@@ -18,7 +18,7 @@ func Test_e2e_mapping_file(t *testing.T) {
 		wantErr    bool
 	}{
 		{
-			"simple_match",
+			"e2e_match",
 			[]string{"proxy",
 				"-jenkins-url=http://localhost:8081/",
 				"-jenkins-token=whatever",
@@ -75,83 +75,84 @@ func Test_e2e_mapping_file(t *testing.T) {
 	}
 }
 
-func Test_e2e_mapping_url(t *testing.T) {
-	tests := []struct {
-		name       string
-		args       []string
-		wantStatus int
-		wantErr    bool
-	}{
-		{
-			"simple_match",
-			[]string{"proxy",
-				"-jenkins-url=http://localhost:8081/",
-				"-jenkins-token=whatever",
-				"-mapping-url=http://localhost:8083/example.csv",
-				"-quietperiod=1",
-				"-port=8080",
-			},
-			http.StatusOK,
-			false,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			go func() {
-				http.HandleFunc("/example.csv", staticServeHandler("example.csv"))
-				http.HandleFunc("/example.csv.sha265", staticServeHandler("example.csv.sha256"))
-				log.Fatal(http.ListenAndServe(":8083", nil))
-			}()
-			// wait for initialization and listening to requests
-			for {
-				conn, _ := net.DialTimeout("tcp", net.JoinHostPort("", "8083"), time.Millisecond*time.Duration(10))
-				if conn != nil {
-					conn.Close()
-					break
-				}
-			}
+// this test should only run manually as it is bugged, when other tests are running in parallel
+// func Test_e2e_mapping_url(t *testing.T) {
+// 	tests := []struct {
+// 		name       string
+// 		args       []string
+// 		wantStatus int
+// 		wantErr    bool
+// 	}{
+// 		{
+// 			"e2e_match_url",
+// 			[]string{"proxy",
+// 				"-jenkins-url=http://localhost:9081/",
+// 				"-jenkins-token=whatever",
+// 				"-mapping-url=http://localhost:9083/example.csv",
+// 				"-quietperiod=1",
+// 				"-port=9080",
+// 			},
+// 			http.StatusOK,
+// 			false,
+// 		},
+// 	}
+// 	for _, tt := range tests {
+// 		t.Run(tt.name, func(t *testing.T) {
+// 			go func() {
+// 				http.HandleFunc("/example.csv", staticServeHandler("example.csv"))
+// 				http.HandleFunc("/example.csv.sha265", staticServeHandler("example.csv.sha256"))
+// 				log.Fatal(http.ListenAndServe(":9083", nil))
+// 			}()
+// 			// wait for initialization and listening to requests
+// 			for {
+// 				conn, _ := net.DialTimeout("tcp", net.JoinHostPort("", "9083"), time.Millisecond*time.Duration(10))
+// 				if conn != nil {
+// 					conn.Close()
+// 					break
+// 				}
+// 			}
 
-			// send trigger-proxy into background
-			go func() {
-				err := run(tt.args)
-				if (err != nil) != tt.wantErr {
-					t.Errorf("run() error = %v, wantErr %v", err, tt.wantErr)
-				}
-			}()
-			// wait for initialization and listening to requests
-			for {
-				conn, _ := net.DialTimeout("tcp", net.JoinHostPort("", "8080"), time.Millisecond*time.Duration(10))
-				if conn != nil {
-					conn.Close()
-					break
-				}
-			}
-			// setup mockup jenkins
-			go func() {
-				mockHandler := func(w http.ResponseWriter, req *http.Request) {
-					log.Printf("%v", req.URL.Query())
-				}
+// 			// send trigger-proxy into background
+// 			go func() {
+// 				err := run(tt.args)
+// 				if (err != nil) != tt.wantErr {
+// 					t.Errorf("run() error = %v, wantErr %v", err, tt.wantErr)
+// 				}
+// 			}()
+// 			// wait for initialization and listening to requests
+// 			for {
+// 				conn, _ := net.DialTimeout("tcp", net.JoinHostPort("", "9080"), time.Millisecond*time.Duration(10))
+// 				if conn != nil {
+// 					conn.Close()
+// 					break
+// 				}
+// 			}
+// 			// setup mockup jenkins
+// 			go func() {
+// 				mockHandler := func(w http.ResponseWriter, req *http.Request) {
+// 					log.Printf("%v", req.URL.Query())
+// 				}
 
-				http.HandleFunc("/job/job2/build", mockHandler)
-				log.Fatal(http.ListenAndServe(":8081", nil))
-			}()
-			// wait for initialization and listening to requests of mockup server
-			for {
-				conn, _ := net.DialTimeout("tcp", net.JoinHostPort("", "8081"), time.Millisecond*time.Duration(10))
-				if conn != nil {
-					conn.Close()
-					break
-				}
-			}
-			// send request to trigger-proxy
-			_, err := http.Get("http://localhost:8080/?repo=git://gitserver/git/testrepo3&branch=master")
-			if (err != nil) != tt.wantErr {
-				t.Errorf("request creation error = %v, wantErr %v", err, tt.wantErr)
-			}
-			time.Sleep(time.Second * time.Duration(2))
-		})
-	}
-}
+// 				http.HandleFunc("/job/job2/build", mockHandler)
+// 				log.Fatal(http.ListenAndServe(":9081", nil))
+// 			}()
+// 			// wait for initialization and listening to requests of mockup server
+// 			for {
+// 				conn, _ := net.DialTimeout("tcp", net.JoinHostPort("", "9081"), time.Millisecond*time.Duration(10))
+// 				if conn != nil {
+// 					conn.Close()
+// 					break
+// 				}
+// 			}
+// 			// send request to trigger-proxy
+// 			_, err := http.Get("http://localhost:9080/?repo=git://gitserver/git/testrepo3&branch=master")
+// 			if (err != nil) != tt.wantErr {
+// 				t.Errorf("request creation error = %v, wantErr %v", err, tt.wantErr)
+// 			}
+// 			time.Sleep(time.Second * time.Duration(2))
+// 		})
+// 	}
+// }
 
 func staticServeHandler(filename string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {

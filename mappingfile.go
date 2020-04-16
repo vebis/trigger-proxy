@@ -29,11 +29,10 @@ func (s *server) refreshMapping() error {
 		newHash = nash
 	}
 
-	if s.mappingHash != "" {
-		log.Printf("hash of mapping has changed (old: %s, new %s)", s.mappingHash, newHash)
-	}
-
 	if newHash != s.mappingHash {
+		if s.mappingHash != "" {
+			log.Printf("hash of mapping has changed (old: %s, new %s)", s.mappingHash, newHash)
+		}
 		if s.isMappingURL() {
 			if err := s.processMappingURL(); err != nil {
 				return err
@@ -81,6 +80,10 @@ func (s *server) processMappingURL() error {
 	}
 	if resp.StatusCode != 200 {
 		return errors.New("getting mapping from url")
+	}
+
+	if !(200 <= resp.StatusCode && resp.StatusCode <= 299) {
+		return errors.New("unsuccesful retrieval of mapping file")
 	}
 
 	body, err := ioutil.ReadAll(resp.Body)
@@ -161,6 +164,10 @@ func (s *server) hashMappingURL() (string, error) {
 		return mhash, err
 	}
 	defer resp.Body.Close()
+
+	if !(200 <= resp.StatusCode && resp.StatusCode <= 299) {
+		return mhash, errors.New("unsuccesful retrieval of hash file")
+	}
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {

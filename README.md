@@ -94,6 +94,10 @@ curl http://trigger-proxy:8080/?repo=https://gitserver/components/component1.git
 
 Then just your Jenkins job "jenkinsjobproj1" will be triggered.
 
+## Misc
+
+There is a readiness endpoint at "/readyz".
+
 ## Authors
 
 * **Stephan Kirsten**
