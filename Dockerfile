@@ -2,7 +2,7 @@ FROM golang:latest as builder
 MAINTAINER Stephan Kirsten <vebis@gmx.net>
 LABEL description="trigger-proxy builder container"
 WORKDIR /src/
-COPY ./*.go /src
+COPY ./*.go /src/
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o app .
 
 FROM alpine:latest
