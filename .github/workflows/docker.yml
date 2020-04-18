@@ -1,6 +1,15 @@
-‐ name: docker
-  id: docker
-  uses: docker/build-action@v1
-  with:
-    repository: vebis/trigger-proxy
-    tags: v1
+name: Docker
+on: [push]
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+    ‐ name: build
+      with:
+        repository: vebis/trigger-proxy
+        tags: v1
+      id: build
+      uses: docker/build-action@v1
+      
