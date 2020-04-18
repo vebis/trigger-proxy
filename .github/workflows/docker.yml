@@ -1,0 +1,6 @@
+‐ name: docker
+  id: docker
+  uses: docker/build-action@v1
+  with:
+    repository: vebis/trigger-proxy
+    tags: v1
