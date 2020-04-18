@@ -7,7 +7,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v1
-      - name: Build the tagged Docker image
+      - name: Build the Docker image
         run: docker build . --file Dockerfile
 
       
