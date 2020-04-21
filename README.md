@@ -33,7 +33,7 @@ sudo docker run vebis/trigger-proxy \
 ```
 
 Send an http GET request with parameter "repo" to port 8080. If you defined the parameter "branch" it will be considered, otherwise "master" ist assumed.
-If you send one or more paramters "file" and you have filematching enabled, it tries to match the files provided against your mapping.
+If you send one or more paramters "files" and you have filematching enabled, it tries to match the files provided against your mapping.
 Otherwise, if you send a [GitLab Webhook](https://docs.gitlab.com/ee/user/project/integrations/webhooks.html) to the endpoint "/json", the information will be parsed and matched against your mapping.
 The app will lookup any job names for your input and will trigger them.
 
@@ -59,7 +59,7 @@ sudo docker run vebis/trigger-proxy \
 If you send an HTTP GET request like:
 
 ```bash
-curl http://trigger-proxy:8080/?repo=https://gitserver/monorepo.git\&branch=master\&file=subdir2/README.md
+curl http://trigger-proxy:8080/?repo=https://gitserver/monorepo.git\&branch=master\&files=subdir2/README.md
 ```
 
 Jenkins job "jenkinsjobproj2" will be triggered.
@@ -89,7 +89,7 @@ sudo docker run vebis/trigger-proxy \
 If you send an HTTP GET request like:
 
 ```bash
-curl http://trigger-proxy:8080/?repo=https://gitserver/components/component1.git\&branch=master\&file=package1/README.md
+curl http://trigger-proxy:8080/?repo=https://gitserver/components/component1.git\&branch=master\&files=package1/README.md
 ```
 
 Then just your Jenkins job "jenkinsjobproj1" will be triggered.

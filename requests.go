@@ -42,7 +42,7 @@ func parseGetRequest(r *http.Request, filematch bool) (string, string, []string,
 	log.Print("Parsed branch: ", branch)
 
 	if filematch {
-		reqFiles, ok := r.URL.Query()["file"]
+		reqFiles, ok := r.URL.Query()["files"]
 
 		if ok && len(reqFiles) > 0 {
 			files = reqFiles

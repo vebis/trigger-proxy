@@ -16,7 +16,7 @@ func Test_parseGetRequest(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	reqF, err := http.NewRequest("GET", "/?repo=git://repo&branch=master&file=1&file=a/b/2", nil)
+	reqF, err := http.NewRequest("GET", "/?repo=git://repo&branch=master&files=1&files=a/b/2", nil)
 	if err != nil {
 		t.Fatal(err)
 	}

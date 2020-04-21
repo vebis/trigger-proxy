@@ -32,7 +32,7 @@ func Test_server_handlePlainGet(t *testing.T) {
 					},
 				},
 			},
-			args{w: httptest.NewRecorder(), r: httptest.NewRequest("GET", "/?repo=git://repo/magic/repo&branch=branch&file=file", nil)},
+			args{w: httptest.NewRecorder(), r: httptest.NewRequest("GET", "/?repo=git://repo/magic/repo&branch=branch&files=file", nil)},
 			http.StatusOK,
 		},
 		{
@@ -48,7 +48,7 @@ func Test_server_handlePlainGet(t *testing.T) {
 					},
 				},
 			},
-			args{w: httptest.NewRecorder(), r: httptest.NewRequest("GET", "/?repo=git://repo/magic/repa&branch=branch&file=file", nil)},
+			args{w: httptest.NewRecorder(), r: httptest.NewRequest("GET", "/?repo=git://repo/magic/repa&branch=branch&files=file", nil)},
 			http.StatusNotFound,
 		},
 		{
@@ -64,7 +64,7 @@ func Test_server_handlePlainGet(t *testing.T) {
 					},
 				},
 			},
-			args{w: httptest.NewRecorder(), r: httptest.NewRequest("GET", "/?branch=branch&file=file", nil)},
+			args{w: httptest.NewRecorder(), r: httptest.NewRequest("GET", "/?branch=branch&files=file", nil)},
 			http.StatusBadRequest,
 		},
 	}
