@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"crypto/sha256"
+	"crypto/tls"
 	"encoding/csv"
 	"encoding/hex"
 	"errors"
@@ -11,6 +12,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 )
 
 func (s *server) refreshMapping() error {
@@ -74,19 +76,7 @@ func (s *server) processMappingFile() error {
 func (s *server) processMappingURL() error {
 	log.Printf("reading mapping from url: %s\n", s.param.proxy.Mapping.url)
 
-	resp, err := http.Get(s.param.proxy.Mapping.url)
-	if err != nil {
-		return err
-	}
-	if resp.StatusCode != 200 {
-		return errors.New("getting mapping from url")
-	}
-
-	if !(200 <= resp.StatusCode && resp.StatusCode <= 299) {
-		return errors.New("unsuccesful retrieval of mapping file")
-	}
-
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := httpGetWrapper(s.param.proxy.Mapping.url)
 	if err != nil {
 		return err
 	}
@@ -159,17 +149,7 @@ func (s *server) hashMappingFile() (string, error) {
 
 func (s *server) hashMappingURL() (string, error) {
 	var mhash string
-	resp, err := http.Get(s.param.proxy.Mapping.url + ".sha256")
-	if err != nil {
-		return mhash, err
-	}
-	defer resp.Body.Close()
-
-	if !(200 <= resp.StatusCode && resp.StatusCode <= 299) {
-		return mhash, errors.New("unsuccesful retrieval of hash file")
-	}
-
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := httpGetWrapper(s.param.proxy.Mapping.url + ".sha256")
 	if err != nil {
 		return mhash, err
 	}
@@ -185,4 +165,39 @@ func (s *server) isMappingURL() bool {
 	}
 
 	return false
+}
+
+func httpGetWrapper(url string) ([]byte, error) {
+	var rbody []byte
+
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return rbody, err
+	}
+
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	}
+
+	timeout := time.Duration(5 * time.Second)
+	client := &http.Client{Transport: tr, Timeout: timeout}
+	resp, err := client.Do(req)
+
+	if err != nil {
+		return rbody, err
+	}
+	defer resp.Body.Close()
+
+	if !(200 <= resp.StatusCode && resp.StatusCode <= 299) {
+		return rbody, errors.New("failure in getting a succesful response")
+	}
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return rbody, err
+	}
+
+	rbody = body
+
+	return rbody, nil
 }
