@@ -25,7 +25,11 @@ func (s *server) matchMappingKeys(keys []string, filematch bool) ([]string, erro
 		} else if filematch {
 			for len(key) > 1 {
 				key = removeLastRune(key)
+                                oldHitCount := len(hits)
 				hits = s.getHits(hits, key)
+                                if len(hits) > oldHitCount {
+                                        break
+                                }
 			}
 		}
 	}
