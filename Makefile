@@ -1,7 +1,7 @@
 NAME         = trigger-proxy
 REGISTRY     = vebis
 SUB_VERSION ?=
-VERSION      = 2.0.2$(SUB_VERSION)
+VERSION      = v2.0.3$(SUB_VERSION)
 
 .PHONY: build clean
 
