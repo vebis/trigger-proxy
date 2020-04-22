@@ -66,7 +66,7 @@ Jenkins job "jenkinsjobproj2" will be triggered.
 
 ### Use Case - semantic repo
 
-Sometime it happends you have a special meaning in the path component of your git repo. Like when you have a component which consists of multiple packages.
+Sometimes it happens you have a special meaning in the path component of your git repo. Like when you have a component which consists of multiple packages.
 
 Example mappingfile:
 
