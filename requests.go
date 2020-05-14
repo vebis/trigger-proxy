@@ -19,27 +19,27 @@ func parseGetRequest(r *http.Request, filematch bool) (string, string, []string,
 	reqRepo, ok := r.URL.Query()["repo"]
 
 	if !ok || len(reqRepo) < 1 {
-		log.Print("Repo is missing")
-		log.Print("Aborting request handling")
+		log.Print("repo is missing")
+		log.Print("aborting request handling")
 
 		return repo, branch, files, errors.New("repo is missing")
 	}
 
 	repo = reqRepo[0]
 
-	log.Print("Parsed repo: ", repo)
+	log.Print("parsed repo: ", repo)
 
 	reqBranch, ok := r.URL.Query()["branch"]
 
 	if !ok || len(reqBranch) < 1 {
-		log.Print("Branch is missing. Assuming master")
+		log.Print("branch is missing. Assuming master")
 
 		branch = "master"
 	} else {
 		branch = reqBranch[0]
 	}
 
-	log.Print("Parsed branch: ", branch)
+	log.Print("parsed branch: ", branch)
 
 	if filematch {
 		reqFiles, ok := r.URL.Query()["files"]

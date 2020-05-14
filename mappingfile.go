@@ -33,7 +33,7 @@ func (s *server) refreshMapping() error {
 
 	if newHash != s.mappingHash {
 		if s.mappingHash != "" {
-			log.Printf("hash of mapping has changed (old: %s, new %s)", s.mappingHash, newHash)
+			log.Printf("hash of mapping has changed (old: %s, new: %s)", s.mappingHash, newHash)
 		}
 		if s.isMappingURL() {
 			if err := s.processMappingURL(); err != nil {
@@ -124,7 +124,7 @@ func parseMappingFile(file io.Reader, filematch bool) (map[string][]string, erro
 		lineCount++
 	}
 
-	log.Printf("Successfully read mappings: %d\n", lineCount)
+	log.Printf("successfully read mappings: %d\n", lineCount)
 
 	return m, nil
 }

@@ -18,18 +18,18 @@ func (s *server) getHits(hits []string, key string) []string {
 func (s *server) matchMappingKeys(keys []string, filematch bool) ([]string, error) {
 	var hits []string
 	for _, key := range keys {
-		log.Print("Searching mappings for key: ", key)
+		log.Print("searching mappings for key: ", key)
 
 		if len(s.mapping[key]) > 0 {
 			hits = s.getHits(hits, key)
 		} else if filematch {
 			for len(key) > 1 {
 				key = removeLastRune(key)
-                                oldHitCount := len(hits)
+				oldHitCount := len(hits)
 				hits = s.getHits(hits, key)
-                                if len(hits) > oldHitCount {
-                                        break
-                                }
+				if len(hits) > oldHitCount {
+					break
+				}
 			}
 		}
 	}
@@ -38,7 +38,7 @@ func (s *server) matchMappingKeys(keys []string, filematch bool) ([]string, erro
 		return []string{}, errors.New("no mappings found")
 	}
 
-	log.Print("Number of mappings found: ", len(hits))
+	log.Print("number of mappings found: ", len(hits))
 
 	return hits, nil
 }
