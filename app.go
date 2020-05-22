@@ -17,8 +17,10 @@ const (
 	defInt   = 5
 )
 
+type mapping map[string][]string
+
 type server struct {
-	mapping                map[string][]string
+	mapping                mapping
 	mappingHash            string
 	mappingRefreshInterval time.Duration
 	timeKeeper             map[string]*time.Timer
@@ -37,14 +39,14 @@ type jenkins struct {
 	Multi string
 }
 
-type mapping struct {
+type mappingSource struct {
 	file string
 	hash string
 	url  string
 }
 
 type proxy struct {
-	Mapping      mapping
+	Mapping      mappingSource
 	QuietPeriod  int
 	FileMatching bool
 	SemanticRepo string
