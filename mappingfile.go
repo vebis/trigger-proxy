@@ -17,67 +17,44 @@ import (
 
 type mappingHandler interface {
 	hashSource() (string, error)
-	process() (mapping, string, error)
+	process(bool) (mapping, string, error)
 }
 
 type mappingFile mappingSource
-
 type mappingURL mappingSource
 
 func (s *server) refreshMapping() error {
-	var newHash string
-	if s.isMappingURL() {
-		var mu mappingURL
-		nash, err := mu.hashSource()
-		if err != nil {
-			return err
-		}
-		newHash = nash
-	} else {
-		var mf mappingFile
-		nash, err := mf.hashSource()
-		if err != nil {
-			return err
-		}
-		newHash = nash
+	newHash, err := s.mappingSource.hashSource()
+	if err != nil {
+		return err
 	}
 
 	if newHash != s.mappingHash {
 		if s.mappingHash != "" {
 			log.Printf("hash of mapping has changed (old: %s, new: %s)", s.mappingHash, newHash)
 		}
-		if s.isMappingURL() {
-			var mu mappingURL
-			curMapping, curHash, err := mu.process(s.param.proxy.FileMatching)
 
-			if err != nil {
-				return err
-			}
-			s.mapping = curMapping
-			s.mappingHash = curHash
-		} else {
-			var mf mappingFile
-			curMapping, curHash, err := mf.process(s.param.proxy.FileMatching)
-			if err != nil {
-				return err
-			}
-			s.mapping = curMapping
-			s.mappingHash = curHash
+		curMapping, curHash, err := s.mappingSource.process(s.param.proxy.FileMatching)
+
+		if err != nil {
+			return err
 		}
+		s.mapping = curMapping
+		s.mappingHash = curHash
 	}
 
 	return nil
 }
 
 // processMappingFile processes the file at given path
-func (m *mappingFile) process(fileMatching bool) (mapping, string, error) {
-	log.Printf("reading mapping from file: %s\n", m.file)
+func (m mappingFile) process(fileMatching bool) (mapping, string, error) {
+	log.Printf("reading mapping from file: %s\n", m.path)
 	var (
 		nm mapping
 		nh string
 	)
 
-	file, err := os.Open(m.file)
+	file, err := os.Open(m.path)
 	if err != nil {
 		return nm, nh, err
 	}
@@ -98,13 +75,13 @@ func (m *mappingFile) process(fileMatching bool) (mapping, string, error) {
 	return nm, nh, nil
 }
 
-func (m *mappingURL) process(fileMatching bool) (mapping, string, error) {
-	log.Printf("reading mapping from url: %s\n", m.url)
+func (m mappingURL) process(fileMatching bool) (mapping, string, error) {
+	log.Printf("reading mapping from url: %s\n", m.path)
 	var (
 		nm mapping
 		nh string
 	)
-	body, err := httpGetWrapper(m.url)
+	body, err := httpGetWrapper(m.path)
 	if err != nil {
 		return nm, nh, err
 	}
@@ -157,9 +134,9 @@ func parseMappingFile(file io.Reader, filematch bool) (map[string][]string, erro
 	return m, nil
 }
 
-func (m *mappingFile) hashSource() (string, error) {
+func (m mappingFile) hashSource() (string, error) {
 	var mhash string
-	file, err := os.Open(m.file)
+	file, err := os.Open(m.path)
 	if err != nil {
 		return mhash, err
 	}
@@ -175,9 +152,9 @@ func (m *mappingFile) hashSource() (string, error) {
 	return mhash, nil
 }
 
-func (m *mappingURL) hashSource() (string, error) {
+func (m mappingURL) hashSource() (string, error) {
 	var mhash string
-	body, err := httpGetWrapper(m.url + ".sha256")
+	body, err := httpGetWrapper(m.path + ".sha256")
 	if err != nil {
 		return mhash, err
 	}
@@ -185,14 +162,6 @@ func (m *mappingURL) hashSource() (string, error) {
 	mhash = string(body)
 
 	return mhash, err
-}
-
-func (s *server) isMappingURL() bool {
-	if len(s.param.proxy.Mapping.url) > 0 {
-		return true
-	}
-
-	return false
 }
 
 func httpGetWrapper(url string) ([]byte, error) {

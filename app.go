@@ -12,9 +12,9 @@ import (
 
 const (
 	exitFail = 1
-	defQp    = 10
-	defPort  = 8080
-	defInt   = 5
+	defQp    = 10   // default quiet period (in sec)
+	defPort  = 8080 // default http port
+	defInt   = 5    // default interfall of mapping refresh (in min)
 )
 
 type mapping map[string][]string
@@ -22,6 +22,7 @@ type mapping map[string][]string
 type server struct {
 	mapping                mapping
 	mappingHash            string
+	mappingSource          mappingHandler
 	mappingRefreshInterval time.Duration
 	timeKeeper             map[string]*time.Timer
 	param                  parameters
@@ -40,13 +41,11 @@ type jenkins struct {
 }
 
 type mappingSource struct {
-	file string
+	path string
 	hash string
-	url  string
 }
 
 type proxy struct {
-	Mapping      mappingSource
 	QuietPeriod  int
 	FileMatching bool
 	SemanticRepo string
@@ -63,7 +62,7 @@ func main() {
 // newServer returns a new trigger proxy server
 func newServer(args []string) (server, error) {
 	s := server{
-		mapping:     make(map[string][]string),
+		mapping:     make(mapping),
 		mappingHash: "",
 		timeKeeper:  make(map[string]*time.Timer),
 	}
@@ -98,16 +97,8 @@ func newServer(args []string) (server, error) {
 
 	log.Printf("quiet period: %d\n", s.param.proxy.QuietPeriod)
 
-	if len(s.param.proxy.Mapping.file) > 0 {
-		log.Printf("mapping file: %s\n", s.param.proxy.Mapping.file)
-	}
-	if len(s.param.proxy.Mapping.url) > 0 {
-		log.Printf("mapping url: %s\n", s.param.proxy.Mapping.url)
-	}
-	if len(s.param.proxy.Mapping.url) > 0 && len(s.param.proxy.Mapping.file) > 0 {
-		log.Println("ignoring mapping file")
-		s.param.proxy.Mapping.file = ""
-	}
+	// log.Printf("mapping source: %s\n", s.mappingSource)
+
 	log.Println("---------------------------------")
 
 	if s.param.proxy.SemanticRepo != "" {
@@ -124,8 +115,7 @@ func (s *server) parseFlags(args []string) error {
 	flags.StringVar(&s.param.jenkins.User, "jenkins-user", "", "jenkins username")
 	flags.StringVar(&s.param.jenkins.Token, "jenkins-token", "", "token for user or root token to trigger anonymously")
 	flags.StringVar(&s.param.jenkins.Multi, "jenkins-multi", "", "root folder or job name")
-	flags.StringVar(&s.param.proxy.Mapping.file, "mapping-file", "mapping.csv", "path to the mapping file")
-	flags.StringVar(&s.param.proxy.Mapping.url, "mapping-url", "", "path to the mapping file")
+
 	flags.IntVar(&s.param.proxy.QuietPeriod, "quietperiod", defQp, "defines the time trigger-proxy will wait until the job is triggered")
 	flags.BoolVar(&s.param.proxy.FileMatching, "filematch", false, "try to match for file names")
 	flags.StringVar(&s.param.proxy.SemanticRepo, "semanticrepo", "", "repo prefix to handle as component repository")
@@ -134,8 +124,30 @@ func (s *server) parseFlags(args []string) error {
 	refreshInterval := flags.Int("mappingrefresh", defInt, "refresh interval in minutes to check for modified mapping file")
 	s.mappingRefreshInterval = time.Duration(*refreshInterval) * time.Minute
 
+	var (
+		mFile string
+		mURL  string
+	)
+	flags.StringVar(&mFile, "mapping-file", "mapping.csv", "path to the mapping file")
+	flags.StringVar(&mURL, "mapping-url", "", "path to the mapping file")
+
 	if err := flags.Parse(args[1:]); err != nil {
 		return err
+	}
+
+	// if an URL is defined, use that
+	if len(mURL) > 0 {
+		s.mappingSource = mappingURL{
+			path: mURL,
+		}
+	} else {
+		if len(mFile) == 0 {
+			return errors.New("no valid mapping source specified")
+		}
+
+		s.mappingSource = mappingFile{
+			path: mFile,
+		}
 	}
 
 	return nil
@@ -149,6 +161,7 @@ func run(args []string) error {
 		return err
 	}
 
+	// if the first refresh fails, fail early
 	if err := s.refreshMapping(); err != nil {
 		return err
 	}
