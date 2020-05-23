@@ -15,84 +15,89 @@ import (
 	"time"
 )
 
+type mappingHandler interface {
+	hashSource() (string, error)
+	process(bool) (mapping, string, error)
+}
+
+type mappingFile mappingSource
+type mappingURL mappingSource
+
 func (s *server) refreshMapping() error {
-	var newHash string
-	if s.isMappingURL() {
-		nash, err := s.hashMappingURL()
-		if err != nil {
-			return err
-		}
-		newHash = nash
-	} else {
-		nash, err := s.hashMappingFile()
-		if err != nil {
-			return err
-		}
-		newHash = nash
+	newHash, err := s.mappingSource.hashSource()
+	if err != nil {
+		return err
 	}
 
 	if newHash != s.mappingHash {
 		if s.mappingHash != "" {
 			log.Printf("hash of mapping has changed (old: %s, new: %s)", s.mappingHash, newHash)
 		}
-		if s.isMappingURL() {
-			if err := s.processMappingURL(); err != nil {
-				return err
-			}
-		} else {
-			if err := s.processMappingFile(); err != nil {
-				return err
-			}
+
+		curMapping, curHash, err := s.mappingSource.process(s.param.proxy.FileMatching)
+
+		if err != nil {
+			return err
 		}
+		s.mapping = curMapping
+		s.mappingHash = curHash
 	}
 
 	return nil
 }
 
 // processMappingFile processes the file at given path
-func (s *server) processMappingFile() error {
-	log.Printf("reading mapping from file: %s\n", s.param.proxy.Mapping.file)
+func (m mappingFile) process(fileMatching bool) (mapping, string, error) {
+	log.Printf("reading mapping from file: %s\n", m.path)
+	var (
+		nm mapping
+		nh string
+	)
 
-	file, err := os.Open(s.param.proxy.Mapping.file)
+	file, err := os.Open(m.path)
 	if err != nil {
-		return err
+		return nm, nh, err
 	}
 	defer file.Close()
 
-	mapping, perr := parseMappingFile(file, s.param.proxy.FileMatching)
+	mapping, perr := parseMappingFile(file, fileMatching)
 	if perr != nil {
-		return perr
+		return nm, nh, perr
 	}
-	newHash, herr := s.hashMappingFile()
+	newHash, herr := m.hashSource()
 	if herr != nil {
-		return herr
+		return nm, nh, herr
 	}
-	s.mapping = mapping
-	s.mappingHash = newHash
 
-	return nil
+	nm = mapping
+	nh = newHash
+
+	return nm, nh, nil
 }
 
-func (s *server) processMappingURL() error {
-	log.Printf("reading mapping from url: %s\n", s.param.proxy.Mapping.url)
-
-	body, err := httpGetWrapper(s.param.proxy.Mapping.url)
+func (m mappingURL) process(fileMatching bool) (mapping, string, error) {
+	log.Printf("reading mapping from url: %s\n", m.path)
+	var (
+		nm mapping
+		nh string
+	)
+	body, err := httpGetWrapper(m.path)
 	if err != nil {
-		return err
+		return nm, nh, err
 	}
 
-	mapping, err := parseMappingFile(bytes.NewReader(body), s.param.proxy.FileMatching)
+	mapping, err := parseMappingFile(bytes.NewReader(body), fileMatching)
 	if err != nil {
-		return err
+		return nm, nh, err
 	}
-	newHash, err := s.hashMappingURL()
+	newHash, err := m.hashSource()
 	if err != nil {
-		return err
+		return nm, nh, err
 	}
-	s.mapping = mapping
-	s.mappingHash = newHash
+	nm = mapping
+	nh = newHash
 
-	return nil
+	return nm, nh, nil
 }
 
 // parseMappingFile parses the given file and returns the mapping
@@ -129,9 +134,9 @@ func parseMappingFile(file io.Reader, filematch bool) (map[string][]string, erro
 	return m, nil
 }
 
-func (s *server) hashMappingFile() (string, error) {
+func (m mappingFile) hashSource() (string, error) {
 	var mhash string
-	file, err := os.Open(s.param.proxy.Mapping.file)
+	file, err := os.Open(m.path)
 	if err != nil {
 		return mhash, err
 	}
@@ -147,9 +152,9 @@ func (s *server) hashMappingFile() (string, error) {
 	return mhash, nil
 }
 
-func (s *server) hashMappingURL() (string, error) {
+func (m mappingURL) hashSource() (string, error) {
 	var mhash string
-	body, err := httpGetWrapper(s.param.proxy.Mapping.url + ".sha256")
+	body, err := httpGetWrapper(m.path + ".sha256")
 	if err != nil {
 		return mhash, err
 	}
@@ -157,14 +162,6 @@ func (s *server) hashMappingURL() (string, error) {
 	mhash = string(body)
 
 	return mhash, err
-}
-
-func (s *server) isMappingURL() bool {
-	if len(s.param.proxy.Mapping.url) > 0 {
-		return true
-	}
-
-	return false
 }
 
 func httpGetWrapper(url string) ([]byte, error) {

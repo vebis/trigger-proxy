@@ -69,56 +69,62 @@ func Test_parseMappingFile(t *testing.T) {
 	}
 }
 
-func Test_server_processMappingFile(t *testing.T) {
+func Test_server_process(t *testing.T) {
 	tests := []struct {
 		name    string
 		s       server
+		fm      bool
 		want    int
 		wantErr bool
 	}{
 		{
 			"example_parser_nofilematch",
 			server{
-				param: parameters{
-					proxy: proxy{
-						Mapping: mapping{
-							file: "./examples/example.csv",
-						},
-					},
+				mappingSource: mappingFile{
+					path: "./examples/example.csv",
 				},
 			},
+			false,
 			8,
 			false,
 		},
 		{
 			"example_parser_filematch",
 			server{
-				param: parameters{
-					proxy: proxy{
-						Mapping: mapping{
-							file: "./examples/example_fm.csv",
-						},
-						FileMatching: true,
-					},
+				mappingSource: mappingFile{
+					path: "./examples/example_fm.csv",
 				},
 			},
+			true,
 			2,
 			false,
+		},
+		{
+			"example_parser_nofilematch",
+			server{
+				mappingSource: mappingFile{
+					path: "./examples/example-notexistent.csv",
+				},
+			},
+			false,
+			0,
+			true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := tt.s.processMappingFile(); (err != nil) != tt.wantErr {
-				t.Errorf("server.processMappingFile() error = %v, wantErr %v", err, tt.wantErr)
+			m, _, err := tt.s.mappingSource.process(tt.fm)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("mappingSource.process() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			got := 0
-			for k := range tt.s.mapping {
-				for range tt.s.mapping[k] {
+			for k := range m {
+				for range m[k] {
 					got = got + 1
 				}
 			}
 			if got != tt.want {
-				t.Errorf("server.processMappingFile() = %v, want %v", got, tt.want)
+				t.Errorf("mappingSource.process() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -134,12 +140,8 @@ func Test_server_refreshMapping(t *testing.T) {
 		{
 			"example_parser_nofilematch",
 			server{
-				param: parameters{
-					proxy: proxy{
-						Mapping: mapping{
-							file: "./examples/example.csv",
-						},
-					},
+				mappingSource: mappingFile{
+					path: "./examples/example.csv",
 				},
 			},
 			8,
@@ -148,15 +150,11 @@ func Test_server_refreshMapping(t *testing.T) {
 		{
 			"example_parser_filematch",
 			server{
-				param: parameters{
-					proxy: proxy{
-						Mapping: mapping{
-							file: "./examples/example_fm.csv",
-						},
-						FileMatching: true,
-					},
+				mappingSource: mappingFile{
+					path: "./examples/example_fm.csv",
 				},
 			},
+
 			2,
 			false,
 		},
@@ -183,22 +181,21 @@ func Test_server_advanced_refreshMapping(t *testing.T) {
 	tests := []struct {
 		name    string
 		s       server
-		newMap  string
+		newmh   mappingHandler
 		want    int
 		wantErr bool
 	}{
 		{
 			"refresh_mapping",
 			server{
-				param: parameters{
-					proxy: proxy{
-						Mapping: mapping{
-							file: "./examples/example.csv",
-						},
-					},
+				mappingSource: mappingFile{
+					path: "./examples/example.csv",
 				},
 			},
-			"./examples/example_refresh.csv",
+
+			mappingFile{
+				path: "./examples/example_refresh.csv",
+			},
 			7,
 			false,
 		},
@@ -209,8 +206,7 @@ func Test_server_advanced_refreshMapping(t *testing.T) {
 				t.Errorf("server.refreshMapping() error = %v, wantErr %v", err, tt.wantErr)
 			}
 
-			tt.s.param.proxy.Mapping.file = tt.newMap
-
+			tt.s.mappingSource = tt.newmh
 			if err := tt.s.refreshMapping(); (err != nil) != tt.wantErr {
 				t.Errorf("server.refreshMapping() error = %v, wantErr %v", err, tt.wantErr)
 			}
@@ -231,22 +227,20 @@ func Test_server_advanced_refreshMapping_url(t *testing.T) {
 	tests := []struct {
 		name    string
 		s       server
-		newMap  string
+		newMap  mappingHandler
 		want    int
 		wantErr bool
 	}{
 		{
 			"refresh_mapping",
 			server{
-				param: parameters{
-					proxy: proxy{
-						Mapping: mapping{
-							url: "http://localhost:10000/example.csv",
-						},
-					},
+				mappingSource: mappingURL{
+					path: "http://localhost:10000/example.csv",
 				},
 			},
-			"http://localhost:10000/example_refresh.csv",
+			mappingURL{
+				path: "http://localhost:10000/example_refresh.csv",
+			},
 			7,
 			false,
 		},
@@ -272,7 +266,7 @@ func Test_server_advanced_refreshMapping_url(t *testing.T) {
 				t.Errorf("server.refreshMapping_initial() error = %v, wantErr %v", err, tt.wantErr)
 			}
 
-			tt.s.param.proxy.Mapping.url = tt.newMap
+			tt.s.mappingSource = tt.newMap
 
 			if err := tt.s.refreshMapping(); (err != nil) != tt.wantErr {
 				t.Errorf("server.refreshMapping_reload() error = %v, wantErr %v", err, tt.wantErr)
