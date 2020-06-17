@@ -84,8 +84,12 @@ func parseJSONRequest(r *http.Request, filematch bool) ([]string, string, []stri
 		return repo, branch, files, errors.New("bad request")
 	}
 
-	repo = append(repo, h.Project.Githttpurl)
-	repo = append(repo, h.Project.Gitsshurl)
+	if h.Project.Githttpurl != "" {
+		repo = append(repo, h.Project.Githttpurl)
+	}
+	if h.Project.Gitsshurl != "" {
+		repo = append(repo, h.Project.Gitsshurl)
+	}
 
 	if strings.Contains(h.Ref, "refs/heads/") {
 		branch = strings.ReplaceAll(h.Ref, "refs/heads/", "")

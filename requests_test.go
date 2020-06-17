@@ -209,3 +209,81 @@ func Test_parseJSONRequest(t *testing.T) {
 		})
 	}
 }
+
+func Test_parseJSONRequestSynthetic(t *testing.T) {
+	sbody := strings.NewReader(`{
+		"ref": "refs/heads/master",
+		"project":{
+		  "git_ssh_url":"git@example.com:test/test.git"
+		},
+		"commits": [
+		  {
+			"added": ["test"],
+			"modified": [],
+			"removed": []
+		  }
+		]
+	  }`)
+	reqSSHb, _ := http.NewRequest("POST", "/", sbody)
+	hbody := strings.NewReader(`{
+		"ref": "refs/heads/master",
+		"project":{
+		  "git_http_url":"http://example.com/test/test.git"
+		},
+		"commits": [
+		  {
+			"added": [],
+			"modified": ["test"],
+			"removed": []
+		  }
+		 ]
+	  }`)
+	reqHTTPb, _ := http.NewRequest("POST", "/", hbody)
+	type args struct {
+		r         *http.Request
+		filematch bool
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    []string
+		want1   string
+		want2   []string
+		wantErr bool
+	}{
+		{
+			"simple_ssh",
+			args{r: reqSSHb, filematch: true},
+			[]string{"git@example.com:test/test.git"},
+			"master",
+			[]string{"test"},
+			false,
+		},
+		{
+			"simple_http",
+			args{r: reqHTTPb, filematch: true},
+			[]string{"http://example.com/test/test.git"},
+			"master",
+			[]string{"test"},
+			false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, got1, got2, err := parseJSONRequest(tt.args.r, tt.args.filematch)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("parseJSONRequest() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("parseJSONRequest() got = %v, want %v", got, tt.want)
+			}
+			if got1 != tt.want1 {
+				t.Errorf("parseJSONRequest() got1 = %v, want %v", got1, tt.want1)
+			}
+			if !reflect.DeepEqual(got2, tt.want2) {
+				t.Errorf("parseJSONRequest() got2 = %v, want %v", got2, tt.want2)
+			}
+		})
+	}
+}
